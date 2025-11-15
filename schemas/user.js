@@ -7,7 +7,8 @@ const UserSchema = new Schema(
       type: String,
       required: true,
     },
+    stationCodes: { type: [String], required: true },
   },
   { timestamps: true }
 );
-module.exports = mongoose.model("User");
+module.exports = mongoose.model("User", UserSchema);
