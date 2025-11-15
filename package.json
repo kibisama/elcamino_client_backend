@@ -1,0 +1,25 @@
+{
+  "name": "elcamino_client_backend",
+  "version": "0.0.1",
+  "description": "elcamino api for clients",
+  "main": "app.js",
+  "scripts": {
+    "dev": "nodemon app"
+  },
+  "author": "kbsm",
+  "license": "ISC",
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "helmet": "^8.1.0",
+    "hpp": "^0.2.3",
+    "mongoose": "^8.19.4",
+    "morgan": "^1.10.1",
+    "passport": "^0.7.0",
+    "winston": "^3.18.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}
