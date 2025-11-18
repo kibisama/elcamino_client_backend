@@ -8,7 +8,7 @@ const nodeCache_users = new NodeCache();
   try {
     if (!(await User.findOne())) {
       await User.create({
-        id: process.env.INIT_USER_NAME,
+        username: process.env.INIT_USER_NAME,
         password: await bcrypt.hash(process.env.INIT_USER_PASSWORD, 10),
         stationCodes: ["CLD", "CLR", "CPD", "CPR", "CSD", "CSR"],
       });
@@ -39,7 +39,7 @@ const create_tokens = (_id, stationCodes) => {
   nodeCache_users.set(_id, refresh_token);
   return {
     access_token: jwt.sign(
-      { sub: _id, h },
+      { sub: _id, stationCodes },
       process.env.JWT_ACCESS_TOKEN_SECRET,
       { expiresIn: "10m" }
     ),

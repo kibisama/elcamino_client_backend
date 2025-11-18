@@ -4,6 +4,8 @@ const morgan = require("morgan");
 const dotenv = require("dotenv");
 dotenv.config();
 
+require("./schemas")();
+
 const app = express();
 app.set("port", process.env.PORT || 8080);
 
@@ -27,10 +29,15 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser(process.env.COOKIE_SECRET));
 
+const passport = require("passport");
+require("./passport")();
+app.use(passport.initialize());
+
 const compression = require("compression");
 app.use(compression());
 
 const router = require("./routes");
+const uap = require("ua-parser-js");
 app.use("/", router);
 
 app.use(require("./error_handler"));

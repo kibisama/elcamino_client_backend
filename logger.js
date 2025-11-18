@@ -13,7 +13,7 @@ const _auth_logger = createLogger({
 }`
   ),
   transports: [
-    new transports.File({ filename: "auth_admin_audit.log", level: "info" }),
+    new transports.File({ filename: "auth_audit.log", level: "info" }),
   ],
 });
 exports.auth_logger = (caller, ref, req) => {

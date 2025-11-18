@@ -6,7 +6,7 @@ const connect = () => {
   }
   mongoose
     .connect(process.env.MONGODB_ADDRESS, {
-      dbName: "elcamino_api",
+      dbName: "elcamino",
     })
     .catch((e) => {
       console.log("MongoDB Connection Error", e);
