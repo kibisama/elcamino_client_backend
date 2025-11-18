@@ -2,12 +2,12 @@ const mongoose = require("mongoose");
 const { Schema } = mongoose;
 const UserSchema = new Schema(
   {
-    username: { type: String, required: true, unique: true },
+    username: { type: String, lowercase: true, required: true, unique: true },
     password: {
       type: String,
       required: true,
     },
-    stationCodes: { type: [String], required: true },
+    stationCodes: [String],
   },
   { timestamps: true }
 );
