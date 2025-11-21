@@ -1,4 +1,5 @@
 const express = require("express");
+const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const morgan = require("morgan");
 const dotenv = require("dotenv");
@@ -9,6 +10,7 @@ require("./schemas")();
 const app = express();
 app.set("port", process.env.PORT || 8080);
 
+app.use(cors({ origin: "*" }));
 app.use(morgan("combined"));
 
 if (process.env.NODE_ENV === "production") {
@@ -38,6 +40,10 @@ app.use(compression());
 
 const router = require("./routes");
 const uap = require("ua-parser-js");
+app.use((req, res, next) => {
+  req.ua = uap(req.headers["user-agent"]);
+  next();
+});
 app.use("/", router);
 
 app.use(require("./error_handler"));

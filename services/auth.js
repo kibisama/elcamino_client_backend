@@ -8,6 +8,7 @@ const nodeCache_users = new NodeCache();
   try {
     if (!(await User.findOne())) {
       await User.create({
+        name: "Cri Help Inc.",
         username: process.env.INIT_USER_NAME,
         password: await bcrypt.hash(process.env.INIT_USER_PASSWORD, 10),
         stationCodes: ["CLD", "CLR", "CPD", "CPR", "CSD", "CSR"],
@@ -20,6 +21,7 @@ const nodeCache_users = new NodeCache();
 
 /**
  * @typedef {object} Token
+ * @property {string}
  * @property {string} access_token
  * @property {string} refresh_token
  */
@@ -27,7 +29,7 @@ const nodeCache_users = new NodeCache();
 /**
  * @param {*} _id
  * @param {[string]} stationCodes
- * @returns {string}
+ * @returns {Token}
  */
 const create_tokens = (_id, stationCodes) => {
   const refresh_token = jwt.sign(
@@ -38,6 +40,7 @@ const create_tokens = (_id, stationCodes) => {
   // set local cache
   nodeCache_users.set(_id, refresh_token);
   return {
+    _id,
     access_token: jwt.sign(
       { sub: _id, stationCodes },
       process.env.JWT_ACCESS_TOKEN_SECRET,

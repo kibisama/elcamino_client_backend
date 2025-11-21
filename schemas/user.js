@@ -7,8 +7,18 @@ const UserSchema = new Schema(
       type: String,
       required: true,
     },
+    name: {
+      type: String,
+      required: true,
+    },
     stationCodes: [String],
   },
   { timestamps: true }
 );
-module.exports = mongoose.model("User", UserSchema);
+const model = mongoose.model("User", UserSchema);
+
+/**
+ * @typedef {ReturnType<model["hydrate"]>} User
+ */
+
+module.exports = model;
