@@ -4,23 +4,25 @@ const passport = require("passport");
 
 const { get } = require("../controllers/user/user");
 
-router.use("/:_id", (req, res, next) => {
-  passport.authenticate("jwt", { session: false }, (authError, user, info) => {
-    if (authError) {
-      return next(authError);
-    }
-    if (info) {
-      if (info.message === "No auth token") {
-        return next({ status: 401 });
+router.use("/", (req, res, next) => {
+  passport.authenticate(
+    "jwt",
+    { session: false },
+    (authError, { _id, stationCode }, info) => {
+      if (authError) {
+        return next(authError);
       }
-      return next(info);
+      if (info) {
+        if (info.message === "No auth token") {
+          return next({ status: 401 });
+        }
+        return next(info);
+      }
+      req.user = { _id, stationCode };
+      next();
     }
-    if (!(user._id && user._id === req.params._id)) {
-      return res.sendStatus(401);
-    }
-    next();
-  })(req, res, next);
+  )(req, res, next);
 });
-router.get("/:_id", get);
+router.get("/info", get);
 
 module.exports = router;
