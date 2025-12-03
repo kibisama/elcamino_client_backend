@@ -2,7 +2,8 @@ const express = require("express");
 const router = express.Router();
 const passport = require("passport");
 
-const { get } = require("../controllers/user/user");
+const { getUser } = require("../controllers/user/user");
+const { getDeliveries } = require("../controllers/user/delivery");
 
 router.use("/", (req, res, next) => {
   passport.authenticate(
@@ -23,6 +24,7 @@ router.use("/", (req, res, next) => {
     }
   )(req, res, next);
 });
-router.get("/info", get);
+router.get("/info", getUser);
+router.get("/deliveries/:invoiceCode/:date", getDeliveries);
 
 module.exports = router;
