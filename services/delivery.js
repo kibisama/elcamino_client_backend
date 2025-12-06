@@ -25,7 +25,7 @@ const nodeCache_current_deliveries = new NodeCache();
 
 /**
  * @typedef {object} DeliveryRow
- * @property {string} rxID
+ * @property {string} id
  * @property {Date} time
  * @property {Date} rxDate
  * @property {string} rxNumber
@@ -72,7 +72,7 @@ const mapDeliveryRow = async (dRxes) => {
       },
     });
     rows.push({
-      rxID: dRx.rxID,
+      id: dRx.rxID,
       time: dRx.deliveryDate,
       rxDate: dRx.rxDate,
       rxNumber: dRx.rxNumber,
