@@ -64,9 +64,6 @@ exports.login = async (username, password) => {
     const result = await bcrypt.compare(password, user.password);
     if (result) {
       const _id = user._id.toString();
-      if (nodeCache_users.get(_id)) {
-        throw { status: 409 };
-      }
       return create_tokens(_id, user.stationCodes);
     } else {
       throw { status: 401 };
@@ -93,9 +90,11 @@ exports.refresh_token = async (refresh_token) => {
   const cache_refresh_token = nodeCache_users.get(sub);
   if (!cache_refresh_token) {
     throw { status: 419 };
-  } else if (cache_refresh_token === refresh_token) {
-    return create_tokens(sub, stationCodes);
-  } else {
-    throw new jwt.JsonWebTokenError();
   }
+  // else if (cache_refresh_token === refresh_token) {
+  //   return create_tokens(sub, stationCodes);
+  // } else {
+  //   throw new jwt.JsonWebTokenError();
+  // }
+  return create_tokens(sub, stationCodes);
 };
