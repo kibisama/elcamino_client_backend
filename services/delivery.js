@@ -17,6 +17,7 @@ const nodeCache_current_deliveries = new NodeCache();
     for (let i = 0; i < stations.length; i++) {
       const { invoiceCode, _id } = stations[i];
       nodeCache_stations.set(invoiceCode, _id.toString());
+      await exports.refreshCurrentDeliveries(invoiceCode);
     }
   } catch (e) {
     console.error(e);
@@ -164,5 +165,6 @@ exports.refreshCurrentDeliveries = async (invoiceCode) => {
       },
     ],
   });
-  nodeCache_current_deliveries.set(invoiceCode, dRxes);
+  const rows = await mapDeliveryRow(dRxes);
+  nodeCache_current_deliveries.set(invoiceCode, rows);
 };

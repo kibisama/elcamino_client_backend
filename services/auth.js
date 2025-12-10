@@ -63,7 +63,11 @@ exports.login = async (username, password) => {
   if (user) {
     const result = await bcrypt.compare(password, user.password);
     if (result) {
-      return create_tokens(user._id.toString(), user.stationCodes);
+      const _id = user._id.toString();
+      if (nodeCache_users.get(_id)) {
+        throw { status: 409 };
+      }
+      return create_tokens(_id, user.stationCodes);
     } else {
       throw { status: 401 };
     }
