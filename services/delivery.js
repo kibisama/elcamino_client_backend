@@ -46,13 +46,12 @@ const getPtFullName = (patient) => {
   const length_ln = patientLastName.length;
   const length_fn = patientFirstName.length;
   const ln =
-    length_fn > 4
+    length_ln > 5
       ? patientLastName.substring(0, 3) + "*".repeat(length_ln - 3)
       : patientLastName.substring(0, 1) + "*".repeat(length_ln - 1);
   const fn =
-    length_fn > 4
-      ? patientFirstName.substring(0, 3) + "*".repeat(length_fn - 3)
-      : patientFirstName.substring(0, 1) + "*".repeat(length_fn - 1);
+    patientFirstName.substring(0, 3) +
+    "*".repeat(length_fn - 3 < 0 ? 0 : length_fn - 3);
   return ln + "," + fn;
 };
 
