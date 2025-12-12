@@ -14,6 +14,9 @@ module.exports = (e, req, res, next) => {
           default:
         }
         break;
+      case "TokenExpiredError":
+        status = 419;
+        break;
       case "JsonWebTokenError":
         status = 401;
         auth_logger("JsonWebTokenError", req.body, req);
