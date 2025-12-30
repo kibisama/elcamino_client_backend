@@ -12,8 +12,8 @@ app.set("port", process.env.PORT || 8080);
 
 const rateLimit = require("express-rate-limit");
 const limiter = rateLimit({
-  max: 100,
-  windowMs: 60 * 1000,
+  max: 200,
+  windowMs: 30 * 1000,
   message: "Too many requests from this IP",
 });
 
