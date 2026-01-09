@@ -8,7 +8,13 @@ const _auth_logger = createLogger({
   timestamp: ${timestamp},
   caller: ${caller},
   reference: ${ref},
-  ip: ${req.ips.length > 0 ? JSON.stringify(req.ips) : req.ip},
+  ip: ${
+    req.headers["x-forwarded-for"]
+      ? JSON.stringify(req.headers["x-forwarded-for"])
+      : req.ips.length > 0
+      ? JSON.stringify(req.ips)
+      : req.ip
+  },
   ua: ${JSON.stringify(req.ua)},
 }`
   ),

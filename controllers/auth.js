@@ -21,3 +21,12 @@ exports.refresh_token = async (req, res, next) => {
     next(e);
   }
 };
+
+exports.getUsers = async (req, res, next) => {
+  try {
+    const result = await auth.getAllUsers();
+    return res.send(result);
+  } catch (e) {
+    next(e);
+  }
+};
