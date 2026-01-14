@@ -6,10 +6,10 @@ const connect = () => {
   }
   mongoose
     .connect(process.env.MONGODB_ADDRESS, {
-      dbName: "elcamino",
+      dbName: "elcamino_client",
     })
-    .catch((e) => {
-      console.log("MongoDB Connection Error", e);
+    .catch((error) => {
+      console.error("MongoDB Connection Error", error);
     });
 };
 
@@ -17,7 +17,7 @@ mongoose.connection.on("error", (error) => {
   console.error("MongoDB Connection Error", error);
 });
 mongoose.connection.on("disconnected", () => {
-  console.error("DIsconnected from MongoDB. Reconnecting...");
+  console.error("Disconnected from MongoDB. Reconnecting...");
   connect();
 });
 

@@ -19,7 +19,7 @@ module.exports = (e, req, res, next) => {
         break;
       case "JsonWebTokenError":
         status = 401;
-        auth_logger("JsonWebTokenError", req.body, req);
+        auth_logger("JsonWebTokenError", req.body.username, req);
         break;
       case "ValidationError":
         // mongo validation error

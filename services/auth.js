@@ -4,20 +4,20 @@ const User = require("../schemas/user");
 const NodeCache = require("node-cache");
 const nodeCache_users = new NodeCache();
 
-(async function () {
-  try {
-    if (!(await User.findOne())) {
-      await User.create({
-        name: "Cri Help Inc.",
-        username: process.env.INIT_USER_NAME,
-        password: await bcrypt.hash(process.env.INIT_USER_PASSWORD, 10),
-        stationCodes: ["CLD", "CLR", "CPD", "CPR", "CSD", "CSR"],
-      });
-    }
-  } catch (e) {
-    console.error(e);
-  }
-})();
+// (async function () {
+//   try {
+//     if (!(await User.findOne())) {
+//       await User.create({
+//         name: "Cri Help Inc.",
+//         username: process.env.INIT_USER_NAME,
+//         password: await bcrypt.hash(process.env.INIT_USER_PASSWORD, 10),
+//         stationCodes: ["CLD", "CLR", "CPD", "CPR", "CSD", "CSR"],
+//       });
+//     }
+//   } catch (e) {
+//     console.error(e);
+//   }
+// })();
 
 /**
  * @typedef {object} Token
@@ -35,7 +35,7 @@ const create_tokens = (_id, stationCodes) => {
   const refresh_token = jwt.sign(
     { sub: _id, stationCodes },
     process.env.JWT_REFRESH_TOKEN_SECRET,
-    { expiresIn: "7d" }
+    { expiresIn: "1h" }
   );
   // set local cache
   nodeCache_users.set(_id, refresh_token);
@@ -44,7 +44,7 @@ const create_tokens = (_id, stationCodes) => {
     access_token: jwt.sign(
       { sub: _id, stationCodes },
       process.env.JWT_ACCESS_TOKEN_SECRET,
-      { expiresIn: "10m" }
+      { expiresIn: "5m" }
     ),
     refresh_token,
   };

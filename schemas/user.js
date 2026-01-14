@@ -18,7 +18,7 @@ const UserSchema = new Schema(
 const model = mongoose.model("User", UserSchema);
 
 /**
- * @typedef {ReturnType<model["hydrate"]>} User
+ * @typedef {Awaited<ReturnType<model["create"]>>[0]} User
  */
 
 module.exports = model;
