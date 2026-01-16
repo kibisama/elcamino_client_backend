@@ -18,12 +18,12 @@ exports.login = async (req, res, next) => {
   }
 };
 
-exports.refresh_token = async (req, res, next) => {
+exports.refreshToken = async (req, res, next) => {
   try {
     const authHeader = req.headers["authorization"];
     if (authHeader && authHeader.startsWith("Bearer ")) {
       const token = authHeader.split(" ")[1];
-      const result = await auth.refresh_token(token);
+      const result = await auth.refreshToken(token);
       return res.send(result);
     } else {
       return res.sendStatus(401);

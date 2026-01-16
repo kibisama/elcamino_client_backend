@@ -17,7 +17,7 @@ const nodeCache_users = new NodeCache();
  * @param {[string]} stationCodes
  * @returns {Token}
  */
-const create_tokens = (_id, stationCodes) => {
+const createToken = (_id, stationCodes) => {
   const refresh_token = jwt.sign(
     { sub: _id, stationCodes },
     process.env.JWT_REFRESH_TOKEN_SECRET,
@@ -48,7 +48,7 @@ exports.login = async (username, password) => {
   if (user) {
     const result = await bcrypt.compare(password, user.password);
     if (result) {
-      return create_tokens(user._id.toString(), user.stationCodes);
+      return createToken(user._id.toString(), user.stationCodes);
     } else {
       throw { status: 401 };
     }
@@ -69,7 +69,7 @@ exports.logout = async (_id) => {
  * @param {string} refresh_token
  * @returns {Proimse<Token>}
  */
-exports.refresh_token = async (refresh_token) => {
+exports.refreshToken = async (refresh_token) => {
   const payload = jwt.verify(
     refresh_token,
     process.env.JWT_REFRESH_TOKEN_SECRET
@@ -82,6 +82,6 @@ exports.refresh_token = async (refresh_token) => {
     nodeCache_users.del(sub);
     throw { status: 401 };
   } else {
-    return create_tokens(sub, stationCodes);
+    return createToken(sub, stationCodes);
   }
 };
