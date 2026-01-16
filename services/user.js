@@ -1,41 +1,51 @@
 const User = require("../schemas/user");
-
-const Patient = require("../schemas/patient");
-const Rx = require("../schemas/rx");
-
-(async function () {
-  try {
-    if (!(await Patient.findOne())) {
-      await Patient.create({
-        patientLastName: "test",
-        patientID: "1",
-        patientFirstName: "test",
-      });
-    }
-  } catch (e) {
-    console.error(e);
-  }
-})();
-(async function () {
-  try {
-    const pt = await Patient.findOne();
-    console.log("pT!!!!!!!!", pt);
-    const rx = await Rx.create({ rxID: "1", patient: pt._id });
-    await rx.populate("patient");
-    console.log(rx);
-  } catch (e) {
-    console.error(e);
-  }
-})();
+const bcrypt = require("bcrypt");
+const { getStationIds } = require("./station");
+const { logout } = require("./auth");
+const { handleMongoError } = require("./error");
 
 /**
- * @param {string|import("mongoose").ObjectId} _id
- * @returns {Proimse<{id: string, name: string, stationCodes: [string]}>}
+ * @typedef {object} UserInfo
+ * @property {string} id
+ * @property {string} name
+ * @property {[string]} stationCodes
  */
-exports.getUser = async (_id) => {
-  if (!_id) {
-    throw { status: 400 };
+
+/**
+ * @param {string} username
+ * @param {string} password
+ * @param {string} name
+ * @param {[string]} [stationCodes]
+ * @returns {Proimse<UserInfo>}
+ */
+exports.createUser = async (username, password, name, stationCodes) => {
+  if (!password) {
+    throw { status: 422 };
   }
+  const hash = await bcrypt.hash(password, 10);
+  let stations;
+  if (stationCodes) {
+    stations = getStationIds(stationCodes);
+  }
+  let user;
+  try {
+    user = await User.create({
+      username,
+      password: hash,
+      name,
+      stations,
+    });
+  } catch (error) {
+    handleMongoError(error);
+  }
+  return { id: username, name, stationCodes };
+};
+
+/**
+ * @param {import("mongoose").ObjectId|string} _id
+ * @returns {Proimse<UserInfo>}
+ */
+exports.getUserInfo = async (_id) => {
   const user = await User.findById(_id);
   if (user) {
     return {
@@ -46,4 +56,53 @@ exports.getUser = async (_id) => {
   } else {
     throw { status: 404 };
   }
+};
+
+/**
+ * @param {string} username
+ * @param {string} password
+ * @returns {Promise<void>}
+ */
+exports.resetPassword = async (username, password) => {
+  if (!(username && password)) {
+    throw { status: 422 };
+  }
+  const user = await User.findOne({ username });
+  if (user) {
+    const hash = await bcrypt.hash(password, 10);
+    await user.updateOne({ password: hash });
+  } else {
+    throw { status: 404 };
+  }
+};
+
+/**
+ * @param {string} username
+ * @returns {Promise<void>}
+ */
+exports.deleteUser = async (username) => {
+  if (!username) {
+    throw { status: 422 };
+  }
+  const user = await User.findOne({ username });
+  if (user) {
+    const _id = user._id.toString();
+    logout(_id);
+    await user.deleteOne();
+  } else {
+    throw { status: 404 };
+  }
+};
+
+/**
+ * @param {string} username
+ * @returns {Promise<[UserInfo]>}
+ */
+exports.getAllUsers = async () => {
+  const users = await User.find();
+  return users.map((user) => ({
+    id: user.username,
+    name: user.name,
+    stationCodes: user.stationCodes,
+  }));
 };

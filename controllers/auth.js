@@ -1,11 +1,17 @@
 const auth = require("../services/auth");
-const { auth_logger } = require("../logger");
+const { authLogger } = require("../logger");
+const { decryptKey, decryptData } = require("../services/crypto");
 
 exports.login = async (req, res, next) => {
   try {
-    const { username, password } = req.body;
+    const { key, iv, data } = req.body;
+    if (!(key && iv && data)) {
+      return res.sendStatus(403);
+    }
+    const decryptedKey = decryptKey(key);
+    const { username, password } = await decryptData(data, decryptedKey, iv);
     const result = await auth.login(username, password);
-    auth_logger("login", username, req);
+    authLogger("login", username, req);
     return res.send(result);
   } catch (e) {
     next(e);
@@ -14,18 +20,14 @@ exports.login = async (req, res, next) => {
 
 exports.refresh_token = async (req, res, next) => {
   try {
-    const { refresh_token } = req.body;
-    const result = await auth.refresh_token(refresh_token);
-    return res.send(result);
-  } catch (e) {
-    next(e);
-  }
-};
-
-exports.getUsers = async (req, res, next) => {
-  try {
-    const result = await auth.getAllUsers();
-    return res.send(result);
+    const authHeader = req.headers["authorization"];
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.split(" ")[1];
+      const result = await auth.refresh_token(token);
+      return res.send(result);
+    } else {
+      return res.sendStatus(401);
+    }
   } catch (e) {
     next(e);
   }

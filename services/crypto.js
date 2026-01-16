@@ -1,13 +1,15 @@
 const crypto = require("crypto");
-const key = Buffer.from(process.env.DB_ENCRYPTION_KEY, "hex");
+const aesKey = Buffer.from(process.env.DB_ENCRYPTION_KEY, "hex");
+const fs = require("fs");
+const privateKey = fs.readFileSync("./private.pem").toString("utf-8");
 
 /**
  * @param {string} content
  * @returns {string}
  */
-exports.encrypt = (content) => {
+exports.encryptDB = (content) => {
   const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipheriv("aes-256-ctr", key, iv);
+  const cipher = crypto.createCipheriv("aes-256-ctr", aesKey, iv);
   const encrypted = Buffer.concat([cipher.update(content), cipher.final()]);
   return JSON.stringify({
     iv: iv.toString("hex"),
@@ -19,14 +21,14 @@ exports.encrypt = (content) => {
  * @param {string} encrypted
  * @returns {Promise<string>}
  */
-exports.decrypt = (encrypted) => {
-  return new Promise((resolve, reject) => {
+exports.decryptDB = (encrypted) =>
+  new Promise((resolve, reject) => {
     try {
       const json = JSON.parse(encrypted);
       const { iv, content } = json;
       const decipher = crypto.createDecipheriv(
         "aes-256-ctr",
-        key,
+        aesKey,
         Buffer.from(iv, "hex")
       );
       const decrypted = Buffer.concat([
@@ -38,4 +40,33 @@ exports.decrypt = (encrypted) => {
       return reject(error);
     }
   });
+
+/**
+ * @param {string} key
+ * @returns {Buffer}
+ */
+exports.decryptKey = (key) => {
+  const keyBuffer = Buffer.from(key, "hex");
+  return crypto.privateDecrypt({ key: privateKey }, keyBuffer);
 };
+
+/**
+ * @param {string} data
+ * @param {Buffer} key
+ * @param {string} iv
+ * @returns {Promise<string>}
+ */
+exports.decryptData = (data, key, iv) =>
+  new Promise((resolve, reject) => {
+    try {
+      const decipher = crypto.createDecipheriv(
+        "aes-256-ctr",
+        key,
+        Buffer.from(iv, "hex")
+      );
+      const decrypted = decipher.update(Buffer.from(data, "hex"));
+      return resolve(JSON.parse(decrypted.toString()));
+    } catch (error) {
+      return reject(error);
+    }
+  });

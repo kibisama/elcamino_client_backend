@@ -1,6 +1,10 @@
 const mongoose = require("mongoose");
 const { Schema } = mongoose;
-const UserSchema = new Schema(
+const {
+  Types: { ObjectId },
+} = Schema;
+
+const userSchema = new Schema(
   {
     username: { type: String, lowercase: true, required: true, unique: true },
     password: {
@@ -11,11 +15,27 @@ const UserSchema = new Schema(
       type: String,
       required: true,
     },
-    stationCodes: [String],
+    stations: [{ type: ObjectId, ref: "Station" }],
   },
   { timestamps: true }
 );
-const model = mongoose.model("User", UserSchema);
+
+userSchema.post("findOne", async function (doc) {
+  if (doc) {
+    await doc.populate("stations", "code");
+    doc.stationCodes = doc.stations.map((station) => station.code);
+  }
+});
+
+userSchema.post("find", async function (docs) {
+  for (let i = 0; i < docs.length; i++) {
+    const doc = docs[i];
+    await doc.populate("stations", "code");
+    doc.stationCodes = doc.stations.map((station) => station.code);
+  }
+});
+
+const model = mongoose.model("User", userSchema);
 
 /**
  * @typedef {Awaited<ReturnType<model["create"]>>[0]} User

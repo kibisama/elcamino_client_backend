@@ -11,7 +11,7 @@ module.exports = () => {
       (jwt_payload, done) =>
         done(null, {
           _id: jwt_payload.sub,
-          stationCode: jwt_payload.stationCode,
+          stationCodes: jwt_payload.stationCodes,
         })
     )
   );

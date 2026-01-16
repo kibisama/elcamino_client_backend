@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 const { Schema } = mongoose;
-const { encrypt, decrypt } = require("../services/crypto");
+const { encryptDB } = require("../services/crypto");
 
 const patientSchema = new Schema({
   patientID: { type: String, required: true, unique: true },
@@ -8,16 +8,9 @@ const patientSchema = new Schema({
   patientLastName: { type: String, required: true },
 });
 
-patientSchema.pre("save", function () {
-  this.patientFirstName = encrypt(this.patientFirstName);
-  this.patientLastName = encrypt(this.patientLastName);
-});
-
-patientSchema.post("findOne", function (doc) {
-  if (doc) {
-    doc.patientFirstName = decrypt(doc.patientFirstName);
-    doc.patientLastName = decrypt(doc.patientLastName);
-  }
+patientSchema.pre("save", async function () {
+  this.patientFirstName = encryptDB(this.patientFirstName);
+  this.patientLastName = encryptDB(this.patientLastName);
 });
 
 const model = mongoose.model("Patient", patientSchema);

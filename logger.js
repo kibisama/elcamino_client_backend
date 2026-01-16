@@ -1,6 +1,6 @@
 const { createLogger, format, transports } = require("winston");
 
-const _auth_logger = createLogger({
+const _authLogger = createLogger({
   level: "info",
   format: format.printf(
     ({ timestamp, caller, ref, req }) =>
@@ -22,8 +22,8 @@ const _auth_logger = createLogger({
     new transports.File({ filename: "auth_audit.log", level: "info" }),
   ],
 });
-exports.auth_logger = (caller, ref, req) => {
-  _auth_logger.log({
+exports.authLogger = (caller, ref, req) => {
+  _authLogger.log({
     level: "info",
     timestamp: new Date().toString(),
     caller,

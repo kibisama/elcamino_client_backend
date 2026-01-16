@@ -8,6 +8,7 @@ module.exports = (e, req, res, next) => {
     switch (name) {
       case "MongoServerError":
         switch (code) {
+          // duplicate key error
           case 11000:
             status = 409;
             break;
@@ -29,3 +30,7 @@ module.exports = (e, req, res, next) => {
   }
   return res.sendStatus(status || 500);
 };
+
+/**
+ * user 422 = already exists
+ */

@@ -1,57 +1,36 @@
-// const Patient = require("../schemas/patient");
+const NodeCache = require("node-cache");
+const Patient = require("../schemas/patient");
 
-// (async function () {
-//   try {
-//     if (!(await Patient.findOne())) {
-//       await Patient.create({
-//         patientLastName: "test",
-//         patientID: "1",
-//         patientFirstName: "test",
-//       });
-//     }
-//   } catch (e) {
-//     console.error(e);
-//   }
-// })();
+// [patientID]: maskedFullName
+const nodeCache_patients = new NodeCache({stdTTL: });
 
-// /**
-//  * @param {DRxPtSchema} ptSchema
-//  * @returns {Promise<DRxPt|undefined>}
-//  */
-// exports.upsertPatient = async (ptSchema) => {
-//   try {
-//     const { patientID } = ptSchema;
-//     if (!patientID) {
-//       return;
-//     }
-//     return await Pt.findOneAndUpdate(
-//       { patientID },
-//       { $set: ptSchema },
-//       { new: true, upsert: true }
-//     );
-//   } catch (e) {
-//     console.error(e);
-//   }
-// };
+/**
+ * @param {DRxPtSchema} ptSchema
+ * @returns {Promise<>}
+ */
+exports.upsertPatient = async (ptSchema) => {
+
+    return await Pt.findOneAndUpdate(
+      { patientID },
+      { $set: ptSchema },
+      { new: true, upsert: true }
+    );
+};
 
 // /**
-//  * @param {string} query LastInit,FirstInit
-//  * @returns {Promise<[{_id: ObjectId, label: string, dob: string}]|undefined>}
+//  * @param {import("../schemas/mirror/patient").DRxPatient} patient
+//  * @returns {string}
 //  */
-// exports.findPatient = async (query) => {
-//   try {
-//     const [last, first] = query.split(",").map((v) => v.trim());
-//     const $and = [];
-//     last &&
-//       $and.push({ patientLastName: { $regex: `^${last}`, $options: "i" } });
-//     first &&
-//       $and.push({ patientFirstName: { $regex: `^${first}`, $options: "i" } });
-//     return (await Pt.find({ $and })).map((v) => ({
-//       _id: v._id,
-//       label: v.patientLastName + "," + v.patientFirstName,
-//       dob: v.patientDOB || "",
-//     }));
-//   } catch (e) {
-//     console.error(e);
-//   }
+// const getPtFullName = (patient) => {
+//   const { patientLastName, patientFirstName } = patient;
+//   const length_ln = patientLastName.length;
+//   const length_fn = patientFirstName.length;
+//   const ln =
+//     length_ln > 5
+//       ? patientLastName.substring(0, 3) + "*".repeat(length_ln - 3)
+//       : patientLastName.substring(0, 1) + "*".repeat(length_ln - 1);
+//   const fn =
+//     patientFirstName.substring(0, 3) +
+//     "*".repeat(length_fn - 3 < 0 ? 0 : length_fn - 3);
+//   return ln + "," + fn;
 // };
