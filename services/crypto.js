@@ -4,16 +4,16 @@ const fs = require("fs");
 const privateKey = fs.readFileSync("./private.pem").toString("utf-8");
 
 /**
- * @param {string} content
+ * @param {string} data
  * @returns {string}
  */
-exports.encryptDB = (content) => {
+exports.encryptDB = (data) => {
   const iv = crypto.randomBytes(16);
   const cipher = crypto.createCipheriv("aes-256-ctr", aesKey, iv);
-  const encrypted = Buffer.concat([cipher.update(content), cipher.final()]);
+  const encrypted = Buffer.concat([cipher.update(data), cipher.final()]);
   return JSON.stringify({
     iv: iv.toString("hex"),
-    content: encrypted.toString("hex"),
+    data: encrypted.toString("hex"),
   });
 };
 
@@ -25,14 +25,14 @@ exports.decryptDB = (encrypted) =>
   new Promise((resolve, reject) => {
     try {
       const json = JSON.parse(encrypted);
-      const { iv, content } = json;
+      const { iv, data } = json;
       const decipher = crypto.createDecipheriv(
         "aes-256-ctr",
         aesKey,
         Buffer.from(iv, "hex")
       );
       const decrypted = Buffer.concat([
-        decipher.update(Buffer.from(content, "hex")),
+        decipher.update(Buffer.from(data, "hex")),
         decipher.final(),
       ]);
       return resolve(decrypted.toString());

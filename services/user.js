@@ -12,6 +12,16 @@ const { handleMongoError } = require("./error");
  */
 
 /**
+ * @param {User.User} user
+ * @returns {UserInfo}
+ */
+const userInfo = ({ username, name, stationCodes }) => ({
+  id: username,
+  name,
+  stationCodes,
+});
+
+/**
  * @param {string} username
  * @param {string} password
  * @param {string} name
@@ -25,7 +35,7 @@ exports.createUser = async (username, password, name, stationCodes) => {
   const hash = await bcrypt.hash(password, 10);
   let stations;
   if (stationCodes) {
-    stations = getStationIds(stationCodes);
+    stations = await getStationIds(stationCodes);
   }
   let user;
   try {
@@ -48,11 +58,7 @@ exports.createUser = async (username, password, name, stationCodes) => {
 exports.getUserInfo = async (_id) => {
   const user = await User.findById(_id);
   if (user) {
-    return {
-      id: user.username,
-      name: user.name,
-      stationCodes: user.stationCodes,
-    };
+    return userInfo(user);
   } else {
     throw { status: 404 };
   }
@@ -100,9 +106,5 @@ exports.deleteUser = async (username) => {
  */
 exports.getAllUsers = async () => {
   const users = await User.find();
-  return users.map((user) => ({
-    id: user.username,
-    name: user.name,
-    stationCodes: user.stationCodes,
-  }));
+  return users.map((user) => userInfo(user));
 };

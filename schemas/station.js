@@ -15,6 +15,15 @@ const stationSchema = new Schema({
 const model = mongoose.model("Station", stationSchema);
 
 /**
+ * @typedef {object} StationSchema
+ * @property {string} code
+ * @property {boolean} [active]
+ * @property {string} name
+ * @property {string} address
+ * @property {string} city
+ * @property {string} state
+ * @property {string} zip
+ * @property {string} phone
  * @typedef {Awaited<ReturnType<model["create"]>>[0]} Station
  */
 

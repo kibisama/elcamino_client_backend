@@ -15,7 +15,7 @@ const nodeCache_stations = new NodeCache();
 const { handleMongoError } = require("./error");
 
 /**
- * @param {Parameters<Station["create"]>[0]} schema
+ * @param {Station.StationSchema} schema
  * @returns {Proimse<void>}
  */
 exports.createStation = async (schema) => {
@@ -30,17 +30,35 @@ exports.createStation = async (schema) => {
 
 /**
  * @param {[string]} stationCodes
- * @returns {[string]}
+ * @returns {Promise<[string]>}
  */
-exports.getStationIds = (stationCodes) => {
+exports.getStationIds = async (stationCodes) => {
   const stationIds = [];
   for (let i = 0; i < stationCodes.length; i++) {
-    const station = nodeCache_stations.get(stationCodes[i]);
-    if (station) {
+    try {
+      const station = await exports.findStation(stationCodes[i]);
       stationIds[i] = station._id.toString();
-    } else {
+    } catch (error) {
       throw { status: 500 };
     }
   }
   return stationIds;
+};
+
+/**
+ * @param {string} stationCode
+ * @returns {Promise<Station.Station>}
+ */
+exports.findStation = async (stationCode) => {
+  const cache = nodeCache_stations.get(stationCode);
+  if (cache) {
+    return cache;
+  }
+  const station = await Station.findOne({ code: stationCode });
+  if (station) {
+    nodeCache_stations.set(stationCode, station);
+    return station;
+  } else {
+    throw { status: 404 };
+  }
 };
