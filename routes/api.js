@@ -13,8 +13,8 @@ router.use("/", (req, res, next) => {
     try {
       jwt.verify(token, process.env.JWT_ACCESS_TOKEN_SECRET);
       next();
-    } catch (e) {
-      next(e);
+    } catch (error) {
+      next(error);
     }
   } else {
     return res.sendStatus(401);

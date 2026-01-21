@@ -45,6 +45,7 @@ exports.createUser = async (username, password, name, stationCodes) => {
       name,
       stations,
     });
+    return userInfo(user);
   } catch (error) {
     handleMongoError(error);
   }

@@ -7,7 +7,6 @@ const nodeCache_users = new NodeCache();
 
 /**
  * @typedef {object} Token
- * @property {string}
  * @property {string} access_token
  * @property {string} refresh_token
  */
@@ -25,7 +24,6 @@ const createToken = (_id, stationCodes) => {
   );
   nodeCache_users.set(_id, refresh_token);
   return {
-    _id,
     access_token: jwt.sign(
       { sub: _id, stationCodes },
       process.env.JWT_ACCESS_TOKEN_SECRET,
