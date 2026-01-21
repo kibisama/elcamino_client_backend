@@ -9,7 +9,7 @@ router.use("/", (req, res, next) => {
   passport.authenticate(
     "jwt",
     { session: false },
-    (authError, { _id, stationCode }, info) => {
+    (authError, { _id, stationCodes }, info) => {
       if (authError) {
         return next(authError);
       }
@@ -19,7 +19,7 @@ router.use("/", (req, res, next) => {
         }
         return next(info);
       }
-      req.user = { _id, stationCode };
+      req.user = { _id, stationCodes };
       next();
     }
   )(req, res, next);

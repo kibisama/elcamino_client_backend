@@ -2,6 +2,7 @@ const crypto = require("crypto");
 const aesKey = Buffer.from(process.env.DB_ENCRYPTION_KEY, "hex");
 const fs = require("fs");
 const privateKey = fs.readFileSync("./private.pem").toString("utf-8");
+const publicKey = "";
 
 /**
  * @param {string} data
@@ -54,7 +55,7 @@ exports.decryptKey = (key) => {
  * @param {string} data
  * @param {Buffer} key
  * @param {string} iv
- * @returns {Promise<string>}
+ * @returns {Promise<*>}
  */
 exports.decryptData = (data, key, iv) =>
   new Promise((resolve, reject) => {
@@ -70,3 +71,23 @@ exports.decryptData = (data, key, iv) =>
       return reject(error);
     }
   });
+
+/**
+ * @param {*} data
+ * @returns {{data: string, key: string, iv: string}}
+ */
+exports.encryptData = (data) => {
+  const key = crypto.randomBytes(32);
+  const iv = crypto.randomBytes(16);
+  const cipher = crypto.createCipheriv("aes-256-ctr", key, iv);
+  const encryptedData = Buffer.concat([
+    cipher.update(JSON.stringify(data)),
+    cipher.final(),
+  ]);
+  const encryptedKey = crypto.publicEncrypt({ key: publicKey }, key);
+  return {
+    data: encryptedData.toString("hex"),
+    key: encryptedKey.toString("hex"),
+    iv: iv.toString("hex"),
+  };
+};

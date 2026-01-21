@@ -58,18 +58,20 @@ exports.login = async (username, password) => {
 };
 
 /**
- * @param {string} _id
+ * @param {string} access_token
  * @returns {void}
  */
-exports.logout = async (_id) => {
-  nodeCache_users.del(_id);
+exports.logout = (access_token) => {
+  const payload = jwt.verify(access_token, process.env.JWT_ACCESS_TOKEN_SECRET);
+  const { sub } = payload;
+  nodeCache_users.del(sub);
 };
 
 /**
  * @param {string} refresh_token
- * @returns {Proimse<Token>}
+ * @returns {Token}
  */
-exports.refreshToken = async (refresh_token) => {
+exports.refreshToken = (refresh_token) => {
   const payload = jwt.verify(
     refresh_token,
     process.env.JWT_REFRESH_TOKEN_SECRET
