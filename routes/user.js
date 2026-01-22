@@ -1,9 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const passport = require("passport");
-
-const { getUser } = require("../controllers/user/user");
-const { getDeliveries } = require("../controllers/user/delivery");
+const { getUserInfo } = require("../controllers/user/user");
 
 router.use("/", (req, res, next) => {
   passport.authenticate(
@@ -14,17 +12,16 @@ router.use("/", (req, res, next) => {
         return next(authError);
       }
       if (info) {
-        if (info.message === "No auth token") {
-          return next({ status: 401 });
-        }
         return next(info);
+      }
+      if (!_id) {
+        return next({ status: 401 });
       }
       req.user = { _id, stationCodes };
       next();
     }
   )(req, res, next);
 });
-router.get("/info", getUser);
-router.get("/deliveries/:invoiceCode/:date", getDeliveries);
+router.get("/info", getUserInfo);
 
 module.exports = router;

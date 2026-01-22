@@ -2,7 +2,15 @@ const crypto = require("crypto");
 const aesKey = Buffer.from(process.env.DB_ENCRYPTION_KEY, "hex");
 const fs = require("fs");
 const privateKey = fs.readFileSync("./private.pem").toString("utf-8");
-const publicKey = "";
+const publicKey = `-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAm1fh+/tk63iQG+qwMgys
+dZ+YROxxdMg/+B+T3WlnMFM2qFsNrRfU0rk2oTieEQJAlQCnHq/sA7wzKkYsJxhi
+HHJZgbV13J8+jpQZ7yd92bFtR/DWYJj0djhfnnXbyLrY69qInGU1sZMeD95vqCcb
+DnlODVkWD9JC5vG1JUPqSRnN/xH7u1M8x4gKnSqjcdIi/peFSyqe9EXIAjEc6a0k
+Sh5EAmzgiYjvHXgRGQ5wUVi9opYd3VD+JHVytIlrRa7foIYC+tHud8JhdjCx7VKq
+SR4slatDVZZFR791YYauGb2oMyg9WEaAO3tDzl7UBM2D25y/7RfocyYm6NZGukOJ
+GwIDAQAB
+-----END PUBLIC KEY-----`;
 
 /**
  * @param {string} data

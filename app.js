@@ -8,7 +8,7 @@ dotenv.config();
 require("./schemas")();
 
 const app = express();
-app.set("port", process.env.PORT || 8080);
+app.set("port", process.env.PORT || 8081);
 
 const rateLimit = require("express-rate-limit");
 const limiter = rateLimit({

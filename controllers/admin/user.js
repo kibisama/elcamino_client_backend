@@ -3,13 +3,8 @@ const user = require("../../services/user");
 exports.createUser = async (req, res, next) => {
   try {
     const { username, password, name, stationCodes } = req.body;
-    const result = await user.createUser(
-      username,
-      password,
-      name,
-      stationCodes
-    );
-    return res.send(result);
+    const info = await user.createUser(username, password, name, stationCodes);
+    return res.send(info);
   } catch (error) {
     next(error);
   }
@@ -37,8 +32,8 @@ exports.deleteUser = async (req, res, next) => {
 
 exports.getAllUsers = async (req, res, next) => {
   try {
-    const result = await user.getAllUsers();
-    return res.send(result);
+    const infos = await user.getAllUsers();
+    return res.send(infos);
   } catch (error) {
     next(error);
   }

@@ -17,7 +17,7 @@ const deliverySchema = new Schema(
   },
   { timestamps: true }
 );
-deliverySchema.index({ createdAt: 1, status: 1 }, { unique: true });
+deliverySchema.index({ createdAt: 1, rx: 1 }, { unique: true });
 
 // 테스트코드
 
