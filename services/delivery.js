@@ -1,90 +1,73 @@
-// const dayjs = require("dayjs");
+const Delivery = require("../schemas/delivery");
+const dayjs = require("dayjs");
+const mongoose = require("mongoose");
 // const customParseFormat = require("dayjs/plugin/customParseFormat");
 // dayjs.extend(customParseFormat);
-// const DRx = require("../schemas/mirror/dRx");
-// const Patient = require("../schemas/mirror/patient");
-// const DeliveryStation = require("../schemas/mirror/deliveryStation");
-// const NodeCache = require("node-cache");
-// // invoiceCode: station._id
-// const nodeCache_stations = new NodeCache();
-// // invoiceCode + MMDDYYYY: [DeliveryRow]
-// const nodeCache_past_deliveries = new NodeCache({ stdTTL: 300 });
-// // invoiceCode: [DeliveryRow]
-// const nodeCache_current_deliveries = new NodeCache();
-// (async function () {
-//   try {
-//     const stations = await DeliveryStation.find();
-//     for (let i = 0; i < stations.length; i++) {
-//       const { invoiceCode, _id } = stations[i];
-//       nodeCache_stations.set(invoiceCode, _id.toString());
-//       await exports.refreshCurrentDeliveries(invoiceCode);
-//     }
-//   } catch (e) {
-//     console.error(e);
-//   }
-// })();
+const { upsertRx } = require("./rx");
+const { upsertPatient } = require("./patient");
+const { getStationCodes, findStation } = require("./station");
+const { handleMongoError } = require("./error");
 
-// /**
-//  * @typedef {object} DeliveryRow
-//  * @property {string} id
-//  * @property {Date} time
-//  * @property {Date} rxDate
-//  * @property {string} rxNumber
-//  * @property {string} patient
-//  * @property {string} drugName
-//  * @property {string} doctorName
-//  * @property {string} rxQty
-//  * @property {string} patPay
-//  */
+const NodeCache = require("node-cache");
+const nodeCache_stations = new NodeCache();
+// [station.code]: { [dayjs(delivery.createdAt).format("MMDDYYYY")]: [DeliveryRow] }
+const nodeCache_past_deliveries = new NodeCache({ stdTTL: 900, maxKeys: 25 });
+let current_date = dayjs().format("MMDDYYYY");
+// [station.code]: [DeliveryRow]
+const nodeCache_current_deliveries = new NodeCache();
 
-// /**
-//  * @param {import("../schemas/mirror/patient").DRxPatient} patient
-//  * @returns {string}
-//  */
-// const getPtFullName = (patient) => {
-//   const { patientLastName, patientFirstName } = patient;
-//   const length_ln = patientLastName.length;
-//   const length_fn = patientFirstName.length;
-//   const ln =
-//     length_ln > 5
-//       ? patientLastName.substring(0, 3) + "*".repeat(length_ln - 3)
-//       : patientLastName.substring(0, 1) + "*".repeat(length_ln - 1);
-//   const fn =
-//     patientFirstName.substring(0, 3) +
-//     "*".repeat(length_fn - 3 < 0 ? 0 : length_fn - 3);
-//   return ln + "," + fn;
-// };
+/**
+ * @typedef {object} DeliveryRow
+ * @property {string} id
+ * @property {Date} time
+ * @property {string} rxID
+ * @property {Date} rxDate
+ * @property {string} rxNumber
+ * @property {string} patientName
+ * @property {string} drugName
+ * @property {string} doctorName
+ * @property {string} rxQty
+ * @property {string} patPay
+ */
 
-// /**
-//  * @param {[DRx.DigitalRx]} dRxes
-//  * @returns {Promise<[DeliveryRow]>}
-//  */
-// const mapDeliveryRow = async (dRxes) => {
-//   /** @type {[DeliveryRow]} **/
-//   const rows = [];
-//   for (let i = 0; i < dRxes.length; i++) {
-//     const dRx = dRxes[i];
-//     await dRx.populate({
-//       path: "patient",
-//       select: {
-//         patientLastName: 1,
-//         patientFirstName: 1,
-//       },
-//     });
-//     rows.push({
-//       id: dRx.rxID,
-//       time: dRx.deliveryDate,
-//       rxDate: dRx.rxDate,
-//       rxNumber: dRx.rxNumber,
-//       patient: getPtFullName(dRx.patient),
-//       drugName: dRx.drugName,
-//       doctorName: dRx.doctorName,
-//       rxQty: dRx.rxQty,
-//       patPay: dRx.patPay,
-//     });
-//   }
-//   return rows;
-// };
+/**
+ * @param {[Delivery.Delivery]} deliveries
+ * @returns {[DeliveryRow]}
+ */
+const deliveryRows = async (deliveries) =>
+  deliveries.map(({ createdAt, rx }, i) => ({
+    id: i,
+    time: createdAt,
+    rxID: rx.rxID,
+    rxDate: rx.rxDate,
+    rxNumber: rx.rxNumber,
+    // patientName: delivery.rx.patientName,
+    drugName: rx.drugName,
+    doctorName: rx.doctorName,
+    rxQty: rx.rxQty,
+    patPay: rx.patPay,
+  }));
+
+/**
+ * @param {string} msg
+ * @returns {Promise<Delivery.Delivery>}
+ */
+exports.createDelivery = async (msg) => {
+  //
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    const patient = await upsertPatient(patientSchema);
+    const rx = await upsertRx({ ...rxSchema, patient });
+    const station = await findStation(stationCode);
+    const delivery = await Delivery.create({ rx });
+  } catch (error) {
+    session.abortTransaction();
+    handleMongoError(error);
+  } finally {
+    session.endSession();
+  }
+};
 
 // /**
 //  * @param {string} invoiceCode

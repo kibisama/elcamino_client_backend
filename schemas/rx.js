@@ -8,7 +8,7 @@ const rxSchema = new Schema(
   {
     rxID: { type: String, required: true, unique: true },
     rxNumber: { type: String, required: true },
-    rxDate: { type: String, required: true },
+    rxDate: { type: Date, required: true },
     refills: { type: String, required: true },
     rxQty: { type: String, required: true },
     patient: { type: ObjectId, required: true, ref: "Patient", index: true },
@@ -16,7 +16,7 @@ const rxSchema = new Schema(
     drugName: { type: String, required: true },
     patPay: { type: String, required: true, default: "0" },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 const model = mongoose.model("Rx", rxSchema);
@@ -24,7 +24,7 @@ const model = mongoose.model("Rx", rxSchema);
  * @typedef {object} RxSchema
  * @property {string} rxID
  * @property {string} rxNumber
- * @property {string} rxDate
+ * @property {Date} rxDate
  * @property {string} refills
  * @property {string} rxQty
  * @property {string|import("mongoose").ObjectId} patient

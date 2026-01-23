@@ -3,13 +3,13 @@ const aesKey = Buffer.from(process.env.DB_ENCRYPTION_KEY, "hex");
 const fs = require("fs");
 const privateKey = fs.readFileSync("./private.pem").toString("utf-8");
 const publicKey = `-----BEGIN PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAm1fh+/tk63iQG+qwMgys
-dZ+YROxxdMg/+B+T3WlnMFM2qFsNrRfU0rk2oTieEQJAlQCnHq/sA7wzKkYsJxhi
-HHJZgbV13J8+jpQZ7yd92bFtR/DWYJj0djhfnnXbyLrY69qInGU1sZMeD95vqCcb
-DnlODVkWD9JC5vG1JUPqSRnN/xH7u1M8x4gKnSqjcdIi/peFSyqe9EXIAjEc6a0k
-Sh5EAmzgiYjvHXgRGQ5wUVi9opYd3VD+JHVytIlrRa7foIYC+tHud8JhdjCx7VKq
-SR4slatDVZZFR791YYauGb2oMyg9WEaAO3tDzl7UBM2D25y/7RfocyYm6NZGukOJ
-GwIDAQAB
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmPz2mMWDnPc1soPwdzqp
+Fn6Gvbw61apM0fhdBneXZZgLOVyJ4jzcJxVuS2/XM5Q/JUKevSksyBd9SBOmgQDZ
+fn+G0fH508NXWb1nLTS67oOQ2sX/s/vrHyxiWgn3pQPRYUrMCpbYOxOI/nT7sU9l
+3mLOD2KHebFTpy2VCqD7Qy54uF/VfTYxNAEa36IHjpJsKBORVHMweGs3ioHog/d7
+Y8GVjItypaxREKBMk5p2EsvQlD9yzcr7WtAsrRDQRpsDlfHvqgDg9yMrndppFnSw
+bHxm1QqU1VF3hbV47SXeXNyhI1/4pETMzjVmOqjBzNEuvxYk+ACm1uCCoWyww9Tr
+SwIDAQAB
 -----END PUBLIC KEY-----`;
 
 /**
@@ -38,7 +38,7 @@ exports.decryptDB = (encrypted) =>
       const decipher = crypto.createDecipheriv(
         "aes-256-ctr",
         aesKey,
-        Buffer.from(iv, "hex")
+        Buffer.from(iv, "hex"),
       );
       const decrypted = Buffer.concat([
         decipher.update(Buffer.from(data, "hex")),
@@ -71,7 +71,7 @@ exports.decryptData = (data, key, iv) =>
       const decipher = crypto.createDecipheriv(
         "aes-256-ctr",
         key,
-        Buffer.from(iv, "hex")
+        Buffer.from(iv, "hex"),
       );
       const decrypted = decipher.update(Buffer.from(data, "hex"));
       return resolve(JSON.parse(decrypted.toString()));
