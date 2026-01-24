@@ -1,5 +1,4 @@
 const Patient = require("../schemas/patient");
-const { handleMongoError } = require("./error");
 const NodeCache = require("node-cache");
 
 // [patient.patientID]: patient
@@ -30,28 +29,24 @@ exports.upsertPatient = async (schema) => {
     throw { status: 422 };
   }
   const patient = await exports.findPatient(patientID);
-  try {
-    if (patient) {
-      if (
-        patientFirstName === patient.patientFirstName &&
-        patientLastName === patient.patientLastName
-      ) {
-        return patient;
-      }
-      const updatedPatient = await Patient.findByIdAndUpdate(
-        patient,
-        {
-          $set: { patientFirstName, patientLastName },
-        },
-        { new: true }
-      );
-      nodeCache_patients.set(patientID, updatedPatient);
-      return updatedPatient;
+  if (patient) {
+    if (
+      patientFirstName === patient.patientFirstName &&
+      patientLastName === patient.patientLastName
+    ) {
+      return patient;
     }
-    const _patient = await Patient.create(schema);
-    nodeCache_patients.set(patientID, _patient);
-    return _patient;
-  } catch (error) {
-    handleMongoError(error);
+    const updatedPatient = await Patient.findByIdAndUpdate(
+      patient,
+      {
+        $set: { patientFirstName, patientLastName },
+      },
+      { new: true }
+    );
+    nodeCache_patients.set(patientID, updatedPatient);
+    return updatedPatient;
   }
+  const _patient = await Patient.create(schema);
+  nodeCache_patients.set(patientID, _patient);
+  return _patient;
 };

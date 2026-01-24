@@ -12,8 +12,8 @@ const patientSchema = new Schema(
 );
 
 patientSchema.pre("save", async function () {
-  this.patientFirstName = encryptDB(this.patientFirstName);
-  this.patientLastName = encryptDB(this.patientLastName);
+  this.patientFirstName = encryptDB(this.patientFirstName.trim());
+  this.patientLastName = encryptDB(this.patientLastName.trim());
 });
 
 const model = mongoose.model("Patient", patientSchema);

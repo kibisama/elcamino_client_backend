@@ -13,6 +13,7 @@ const deliverySchema = new Schema(
       enum: ["PROCESSED", "CANCELED", "SHIPPED", "RETURNED"],
       required: true,
       default: "PROCESSED",
+      index: true,
     },
   },
   { timestamps: true }
@@ -36,6 +37,7 @@ deliverySchema.index({ createdAt: 1, rx: 1 }, { unique: true });
 const model = mongoose.model("Delivery", deliverySchema);
 /**
  * @typedef {Awaited<ReturnType<model["create"]>>[0]} Delivery
+ * @typedef {"PROCESSED"|"CANCELED"|"SHIPPED"|"RETURNED"} DeliveryStatus
  */
 
 module.exports = model;

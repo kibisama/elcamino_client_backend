@@ -2,29 +2,23 @@ const Station = require("../schemas/station");
 const NodeCache = require("node-cache");
 // [station.code]: station
 const nodeCache_stations = new NodeCache();
-
+const { refresh_nodeCache_current_deliveries } = require("./delivery");
 (async function () {
   const stations = await Station.find();
   for (let i = 0; i < stations.length; i++) {
     const station = stations[i];
-    station.active && nodeCache_stations.set(station.code, station);
-    // await exports.refreshCurrentDeliveries(invoiceCode);
+    const { active, code } = station;
+    active && nodeCache_stations.set(code, station);
+    await refresh_nodeCache_current_deliveries(code);
   }
 })();
-
-const { handleMongoError } = require("./error");
 
 /**
  * @param {Station.StationSchema} schema
  * @returns {Proimse<void>}
  */
 exports.createStation = async (schema) => {
-  let station;
-  try {
-    station = await Station.create(schema);
-  } catch (error) {
-    handleMongoError(error);
-  }
+  const station = await Station.create(schema);
   nodeCache_stations.set(station.code, station);
 };
 
