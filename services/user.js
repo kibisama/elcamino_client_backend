@@ -2,7 +2,6 @@ const User = require("../schemas/user");
 const bcrypt = require("bcrypt");
 const { getStationIds } = require("./station");
 const { logout } = require("./auth");
-const { handleMongoError } = require("./error");
 
 /**
  * @typedef {object} UserInfo
@@ -37,19 +36,13 @@ exports.createUser = async (username, password, name, stationCodes) => {
   if (stationCodes) {
     stations = await getStationIds(stationCodes);
   }
-  let user;
-  try {
-    user = await User.create({
-      username,
-      password: hash,
-      name,
-      stations,
-    });
-    return userInfo(user);
-  } catch (error) {
-    handleMongoError(error);
-  }
-  return { id: username, name, stationCodes };
+  const user = await User.create({
+    username,
+    password: hash,
+    name,
+    stations,
+  });
+  return userInfo(user);
 };
 
 /**
