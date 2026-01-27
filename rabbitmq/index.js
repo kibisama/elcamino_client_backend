@@ -1,42 +1,51 @@
 const amqplib = require("amqplib");
 const RABBITMQ_URL = process.env.RABBITMQ_URL || "amqp://localhost";
-const dayjs = require("dayjs");
-const { decodeQR } = require("../services/delivery");
+const { handleDeliveryMessage } = require("../services/delivery");
 
 /**
- * @typedef {object} Content1
- * @property {string} invoiceCode
- * @property {string} data
- * @property {string} delimiter
+ * @param {amqplib.ChannelModel} conn
+ * @param {string} queue
+ * @param {(data: *)=>Promise<*>} handler
+ * @param {number} [retryDelay]
+ * @param {function} [errorHandler]
+ * @returns {Promise<void>}
  */
+const handle = async (conn, queue, handler, retryDelay = 30000) => {
+  const ch = await conn.createChannel();
+  await ch.prefetch(1);
+  await ch.assertQueue(queue, { durable: true });
+  const retryQueue = queue + "_retry";
+  await ch.assertQueue(retryQueue, {
+    durable: true,
+    deadLetterExchange: "",
+    deadLetterRoutingKey: queue,
+    messageTtl: retryDelay,
+  });
+  ch.consume(queue, async (msg) => {
+    if (msg) {
+      try {
+        if (msg.properties.headers["x-retry-count"] > 5) {
+          // save msg in DB
 
-/**
- * @param {amqplib.ConsumeMessage["content"]} content
- * @returns {*}
- */
-const parseContent = (content) => JSON.parse(content.toString());
-
-module.exports = async () => {
-  const conn = await amqplib.connect(RABBITMQ_URL);
-  const queue1 = "client_delivery";
-  const ch1 = await conn.createChannel();
-  await ch1.assertQueue();
-  ch1.consume(queue1, (msg) => {
-    if (msg !== null) {
-      if (
-        dayjs(new Date(msg.properties.timestamp * 1000)).isSame(dayjs(), "d")
-      ) {
-        /** @type {Content1} */
-        const content = parseContent(msg.content);
-        const { invoiceCode, data, delimiter } = content;
-        try {
-          const { patientSchema, rxSchema } = decodeQR(data, delimiter);
-        } catch (error) {
-          //
+          ch.nack(msg, false, false);
+          return;
         }
-        //
-        ch1.ack(msg);
+        await handler(JSON.parse(msg.content.toString()));
+        ch.ack(msg);
+      } catch (error) {
+        ch.nack(msg, false, false);
+        ch.publish("", retryQueue, msg.content, {
+          persistent: true,
+          headers: {
+            "x-retry-count": (msg.properties.headers["x-retry-count"] || 0) + 1,
+          },
+        });
       }
     }
   });
+};
+
+module.exports = async () => {
+  const conn = await amqplib.connect(RABBITMQ_URL);
+  await handle(conn, "delivery", handleDeliveryMessage);
 };

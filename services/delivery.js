@@ -31,8 +31,8 @@ const nodeCache_current_deliveries = new NodeCache();
  */
 
 /**
- * @param {[Delivery.Delivery]} deliveries
- * @returns {[DeliveryRow]}
+ * @param {Delivery.Delivery[]} deliveries
+ * @returns {DeliveryRow[]}
  */
 const deliveryRows = async (deliveries) =>
   deliveries.map(({ createdAt, status, rx }, i) => ({
@@ -49,88 +49,88 @@ const deliveryRows = async (deliveries) =>
     status: status,
   }));
 
-/**
- * @param {string} rxID
- * @param {Date} [date]
- * @returns {Promise<[Delivery.Delivery]>}
- */
-exports.findDeliveriesByRxID = async (rxID, date) => {
-  find;
-};
+// /**
+//  * @param {string} rxID
+//  * @param {Date} [date]
+//  * @returns {Promise<Delivery.Delivery[]>}
+//  */
+// exports.findDeliveriesByRxID = async (rxID, date) => {
+//   find;
+// };
 
-/**
- * @param {import("../schemas/patient").PatientSchema} patientSchema
- * @param {import("../schemas/rx").RxSchema} rxSchema
- * @param {string} stationCode
- * @returns {Promise<Delivery.Delivery>}
- */
-exports.createDelivery = async (patientSchema, rxSchema, stationCode) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-  try {
-    const patient = await upsertPatient(patientSchema);
-    const rx = await upsertRx({ ...rxSchema, patient });
-    const station = await findStation(stationCode);
-    const delivery = await Delivery.create({ rx, station });
-    //
-  } catch (error) {
-    session.abortTransaction();
-    throw error;
-  } finally {
-    session.endSession();
-  }
-};
+// /**
+//  * @param {import("../schemas/patient").PatientSchema} patientSchema
+//  * @param {import("../schemas/rx").RxSchema} rxSchema
+//  * @param {string} stationCode
+//  * @returns {Promise<Delivery.Delivery>}
+//  */
+// exports.createDelivery = async (patientSchema, rxSchema, stationCode) => {
+//   const session = await mongoose.startSession();
+//   session.startTransaction();
+//   try {
+//     const patient = await upsertPatient(patientSchema);
+//     const rx = await upsertRx({ ...rxSchema, patient });
+//     const station = await findStation(stationCode);
+//     const delivery = await Delivery.create({ rx, station });
+//     //
+//   } catch (error) {
+//     session.abortTransaction();
+//     throw error;
+//   } finally {
+//     session.endSession();
+//   }
+// };
 
-/**
- * @param {string} qr
- * @param {string} delimiter
- * @returns {{patientSchema: import("../schemas/patient").PatientSchema, rxSchema: import("../schemas/rx").RxSchema}}
- */
-exports.decodeQR = async (qr, delimiter) => {
-  const [
-    rxID,
-    rxNumber,
-    rxDate,
-    patientID,
-    patientLastName,
-    pateintFirstName,
-    drugName,
-    doctorName,
-    rxQty,
-    refills,
-    ,
-    patPay,
-  ] = qr.split(delimiter);
-  if (
-    !(
-      rxID &&
-      rxNumber &&
-      rxDate &&
-      patientID &&
-      patientLastName &&
-      pateintFirstName &&
-      drugName &&
-      doctorName &&
-      rxQty &&
-      refills
-    )
-  ) {
-    throw { status: 422 };
-  }
-  return {
-    patientSchema: { patientID, patientLastName, pateintFirstName },
-    rxSchema: {
-      rxID,
-      rxNumber,
-      rxDate,
-      drugName,
-      doctorName,
-      rxQty,
-      refills,
-      patPay,
-    },
-  };
-};
+// /**
+//  * @param {string} qr
+//  * @param {string} delimiter
+//  * @returns {{patientSchema: import("../schemas/patient").PatientSchema, rxSchema: import("../schemas/rx").RxSchema}}
+//  */
+// exports.decodeQR = async (qr, delimiter) => {
+//   const [
+//     rxID,
+//     rxNumber,
+//     rxDate,
+//     patientID,
+//     patientLastName,
+//     pateintFirstName,
+//     drugName,
+//     doctorName,
+//     rxQty,
+//     refills,
+//     ,
+//     patPay,
+//   ] = qr.split(delimiter);
+//   if (
+//     !(
+//       rxID &&
+//       rxNumber &&
+//       rxDate &&
+//       patientID &&
+//       patientLastName &&
+//       pateintFirstName &&
+//       drugName &&
+//       doctorName &&
+//       rxQty &&
+//       refills
+//     )
+//   ) {
+//     throw { status: 422 };
+//   }
+//   return {
+//     patientSchema: { patientID, patientLastName, pateintFirstName },
+//     rxSchema: {
+//       rxID,
+//       rxNumber,
+//       rxDate,
+//       drugName,
+//       doctorName,
+//       rxQty,
+//       refills,
+//       patPay,
+//     },
+//   };
+// };
 
 // /**
 //  * @param {string} invoiceCode
@@ -187,23 +187,39 @@ exports.decodeQR = async (qr, delimiter) => {
 //   throw { status: 400 };
 // };
 
+// /**
+//  * @param {string} stationCode
+//  * @returns {Promise<void>}
+//  */
+// exports.refresh_nodeCache_current_deliveries = async (stationCode) => {
+//   const station = await findStation(stationCode);
+//   const now = dayjs();
+//   const deliveries = await Delivery.find({
+//     $and: [
+//       { station },
+//       {
+//         createdAt: {
+//           $gte: now.startOf("d"),
+//           $lte: now.endOf("d"),
+//         },
+//       },
+//     ],
+//   });
+//   nodeCache_current_deliveries.set(stationCode, deliveryRows(deliveries));
+// };
+
 /**
- * @param {string} stationCode
+ * @typedef {object} DeliveryMessage
+ * @property {string} stationCode
+ * @property {string} date
+ * @property {string} data
+ * @property {string} delimiter
+ */
+
+/**
+ * @param {DeliveryMessage} msg
  * @returns {Promise<void>}
  */
-exports.refresh_nodeCache_current_deliveries = async (stationCode) => {
-  const station = await findStation(stationCode);
-  const now = dayjs();
-  const deliveries = await Delivery.find({
-    $and: [
-      { station },
-      {
-        createdAt: {
-          $gte: now.startOf("d"),
-          $lte: now.endOf("d"),
-        },
-      },
-    ],
-  });
-  nodeCache_current_deliveries.set(stationCode, deliveryRows(deliveries));
+exports.handleDeliveryMessage = async (msg) => {
+  //
 };

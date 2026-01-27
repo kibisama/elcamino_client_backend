@@ -7,7 +7,7 @@ const { logout } = require("./auth");
  * @typedef {object} UserInfo
  * @property {string} id
  * @property {string} name
- * @property {[string]} stationCodes
+ * @property {string[]} stationCodes
  */
 
 /**
@@ -24,7 +24,7 @@ const userInfo = ({ username, name, stationCodes }) => ({
  * @param {string} username
  * @param {string} password
  * @param {string} name
- * @param {[string]} [stationCodes]
+ * @param {string[]} [stationCodes]
  * @returns {Proimse<UserInfo>}
  */
 exports.createUser = async (username, password, name, stationCodes) => {
@@ -96,7 +96,7 @@ exports.deleteUser = async (username) => {
 
 /**
  * @param {string} username
- * @returns {Promise<[UserInfo]>}
+ * @returns {Promise<UserInfo[]>}
  */
 exports.getAllUsers = async () => {
   const users = await User.find();

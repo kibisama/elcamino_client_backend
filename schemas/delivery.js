@@ -7,6 +7,7 @@ const {
 const deliverySchema = new Schema(
   {
     rx: { type: ObjectId, ref: "Rx", required: true },
+    date: { type: Date, required: true, index: true },
     station: { type: ObjectId, ref: "Station", required: true, index: true },
     status: {
       type: String,
@@ -16,9 +17,9 @@ const deliverySchema = new Schema(
       index: true,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
-deliverySchema.index({ createdAt: 1, rx: 1 }, { unique: true });
+deliverySchema.index({ rx: 1, date: 1 }, { unique: true });
 
 // 테스트코드
 

@@ -13,21 +13,21 @@ const nodeCache_users = new NodeCache();
 
 /**
  * @param {string} _id
- * @param {[string]} stationCodes
+ * @param {string[]} stationCodes
  * @returns {Token}
  */
 const createToken = (_id, stationCodes) => {
   const refresh_token = jwt.sign(
     { sub: _id, stationCodes },
     process.env.JWT_REFRESH_TOKEN_SECRET,
-    { expiresIn: "1h" }
+    { expiresIn: "1h" },
   );
   nodeCache_users.set(_id, refresh_token);
   return {
     access_token: jwt.sign(
       { sub: _id, stationCodes },
       process.env.JWT_ACCESS_TOKEN_SECRET,
-      { expiresIn: "5m" }
+      { expiresIn: "5m" },
     ),
     refresh_token,
   };
@@ -72,7 +72,7 @@ exports.logout = (access_token) => {
 exports.refreshToken = (refresh_token) => {
   const payload = jwt.verify(
     refresh_token,
-    process.env.JWT_REFRESH_TOKEN_SECRET
+    process.env.JWT_REFRESH_TOKEN_SECRET,
   );
   const { sub, stationCodes } = payload;
   const cacheRefreshToken = nodeCache_users.get(sub);
