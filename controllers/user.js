@@ -1,5 +1,5 @@
-const user = require("../../services/user");
-const { encryptData } = require("../../services/crypto");
+const user = require("../services/user");
+const { encryptData } = require("../services/crypto");
 
 exports.getUserInfo = async (req, res, next) => {
   try {

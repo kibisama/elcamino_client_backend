@@ -18,3 +18,14 @@ exports.upsertRx = async (schema) => {
     }
   );
 };
+
+/**
+ * @param {string} rxID
+ * @returns {Promise<Rx.Rx|null>}
+ */
+exports.findRxByRxID = async (rxID) => {
+  if (!rxID) {
+    throw { status: 422 };
+  }
+  return await Rx.findOne({ rxID });
+};

@@ -1,13 +1,15 @@
 const amqplib = require("amqplib");
 const RABBITMQ_URL = process.env.RABBITMQ_URL || "amqp://localhost";
-const { handleDeliveryMessage } = require("../services/delivery");
+const {
+  handleNewDeliveryMessage,
+  handleCancelDeliveryMessage,
+} = require("../services/delivery");
 
 /**
  * @param {amqplib.ChannelModel} conn
  * @param {string} queue
  * @param {(data: *)=>Promise<*>} handler
  * @param {number} [retryDelay]
- * @param {function} [errorHandler]
  * @returns {Promise<void>}
  */
 const handle = async (conn, queue, handler, retryDelay = 30000) => {
@@ -25,21 +27,24 @@ const handle = async (conn, queue, handler, retryDelay = 30000) => {
     if (msg) {
       try {
         if (msg.properties.headers["x-retry-count"] > 5) {
-          // save msg in DB
+          // save dead msg in DB
 
           ch.nack(msg, false, false);
           return;
         }
         await handler(JSON.parse(msg.content.toString()));
         ch.ack(msg);
-      } catch (error) {
+      } catch ({ status }) {
         ch.nack(msg, false, false);
-        ch.publish("", retryQueue, msg.content, {
-          persistent: true,
-          headers: {
-            "x-retry-count": (msg.properties.headers["x-retry-count"] || 0) + 1,
-          },
-        });
+        if (status !== 422) {
+          ch.publish("", retryQueue, msg.content, {
+            persistent: true,
+            headers: {
+              "x-retry-count":
+                (msg.properties.headers["x-retry-count"] || 0) + 1,
+            },
+          });
+        }
       }
     }
   });
@@ -47,5 +52,6 @@ const handle = async (conn, queue, handler, retryDelay = 30000) => {
 
 module.exports = async () => {
   const conn = await amqplib.connect(RABBITMQ_URL);
-  await handle(conn, "delivery", handleDeliveryMessage);
+  await handle(conn, "new_delivery", handleNewDeliveryMessage);
+  await handle(conn, "cancel_delivery", handleCancelDeliveryMessage);
 };
