@@ -1,13 +1,18 @@
 const Delivery = require("../schemas/delivery");
+const Patient = require("../schemas/patient");
+const Rx = require("../schemas/rx");
 const dayjs = require("dayjs");
 const customParseFormat = require("dayjs/plugin/customParseFormat");
 dayjs.extend(customParseFormat);
 const mongoose = require("mongoose");
-const { findRxByRxID, upsertRx } = require("./rx");
-const { upsertPatient } = require("./patient");
+const { findPatient, refresh_nodeCache_patients } = require("./patient");
 const { findStation } = require("./station");
 
+/**
+ * NodeCache
+ */
 const NodeCache = require("node-cache");
+
 /**
  * @param {string} stationCode
  * @param {dayjs.Dayjs} day
@@ -19,6 +24,62 @@ const nodeCache_past_deliveries = new NodeCache({ stdTTL: 900, maxKeys: 50 });
 let today = dayjs();
 // [station.code]: [DeliveryRow]
 const nodeCache_current_deliveries = new NodeCache();
+
+/**
+ * @param {string} stationCode
+ * @returns {Promise<void>}
+ */
+const refresh_nodeCache_current_deliveries = async (stationCode) => {
+  const now = dayjs();
+  if (!now.isSame(today, "d")) {
+    nodeCache_current_deliveries.flushAll();
+    today = now;
+  }
+  const station = await findStation(stationCode);
+  const deliveries = await Delivery.find({
+    station,
+    date: {
+      $gte: now.startOf("d"),
+      $lte: now.endOf("d"),
+    },
+    status: { $ne: "CANCELED" },
+  });
+  nodeCache_current_deliveries.set(stationCode, deliveryRows(deliveries));
+};
+
+/**
+ * @param {string} stationCode
+ * @param {dayjs.Dayjs} day
+ * @returns {Promise<void>}
+ */
+const refresh_nodeCache_past_deliveries = async (stationCode, day) => {
+  const station = await findStation(stationCode);
+  const deliveries = await Delivery.find({
+    station,
+    date: {
+      $gte: now.startOf("d"),
+      $lte: now.endOf("d"),
+    },
+    status: { $ne: "CANCELED" },
+  });
+  nodeCache_past_deliveries.set(
+    get_nodeCache_past_deliveries_key(stationCode, day),
+    deliveryRows(deliveries)
+  );
+};
+
+/**
+ * @param {string} stationCode
+ * @param {dayjs.Dayjs} day
+ * @returns {Promise<void>}
+ */
+const refresh_nodeCache_deliveries = async (stationCode, day) => {
+  if (day.isSame(dayjs(), "d")) {
+    await refresh_nodeCache_current_deliveries(stationCode);
+  } else {
+    await refresh_nodeCache_past_deliveries(stationCode, day);
+  }
+};
 
 /**
  * @typedef {object} DeliveryRow
@@ -115,41 +176,114 @@ const decodeQR = async (qr, delimiter) => {
 exports.upsertDelivery = async (patientSchema, rxSchema, stationCode, day) => {
   const session = await mongoose.startSession();
   session.startTransaction();
+  const { patientID, patientFirstName, patientLastName } = patientSchema;
+  let patient = await findPatient(patientID);
   try {
-    const patient = await upsertPatient(patientSchema);
-    const rx = await upsertRx({ ...rxSchema, patient });
-    const station = await findStation(stationCode);
-    const delivery = await Delivery.findOne({
-      rx,
-      date: {
-        $gte: day.startOf("d"),
-        $lte: day.endOf("d"),
-      },
+    if (
+      !patient ||
+      patientFirstName !== patient.patientFirstName ||
+      patientLastName !== patient.patientLastName
+    ) {
+      patient = await Patient.findOneAndUpdate({ patientID }, patientSchema, {
+        new: true,
+        upsert: true,
+        session,
+      });
+    }
+    const { rxID, ..._rxSchema } = rxSchema;
+    if (!rxID) {
+      throw { status: 422 };
+    }
+    const rx = await Rx.findOneAndUpdate({ rxID }, _rxSchema, {
+      upsert: true,
+      session,
     });
+    const station = await findStation(stationCode);
+    const delivery = await Delivery.findOne(
+      {
+        rx,
+        date: {
+          $gte: day.startOf("d"),
+          $lte: day.endOf("d"),
+        },
+      },
+      {},
+      { session }
+    );
     if (!delivery) {
-      await Delivery.create({ rx, date: day, station });
+      await Delivery.create({ rx, date: day, station }, { session });
     } else {
-      const { status } = delivery;
-      if (status === "PROCESSED" || status === "CANCELED") {
-        // updateOne processed &  station
-      } else {
-        throw { status: 422 };
+      switch (delivery.status) {
+        case "CANCELED":
+          delivery.station = station._id;
+          delivery.status = "PROCESSED";
+          await delivery.save();
+          break;
+        case "PROCESSED":
+          delivery.station = station._id;
+          await delivery.save();
+          break;
+        default:
+          throw { status: 422 };
       }
     }
-    // refresh cache
-    if (day.isSame(dayjs(), "d")) {
-      await refresh_nodeCache_current_deliveries(stationCode);
-    } else {
-      const key = get_nodeCache_past_deliveries_key(stationCode, day);
-      nodeCache_past_deliveries.get(key) &&
-        (await refresh_nodeCache_past_deliveries(stationCode, day));
-    }
+    await session.commitTransaction();
   } catch (error) {
-    session.abortTransaction();
+    await session.abortTransaction();
     throw error;
   } finally {
-    session.endSession();
+    await session.endSession();
   }
+  refresh_nodeCache_patients(patientID, patient);
+  await refresh_nodeCache_deliveries(stationCode, day);
+};
+
+/**
+ * @param {string} rxID
+ * @param {dayjs.Dayjs} day
+ * @returns {Promise<void>}
+ */
+exports.cancelDelivery = async (rxID, day) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  let stationCode;
+  try {
+    const rx = await Rx.findOne({ rxID });
+    if (!rx) {
+      throw { status: 404 };
+    }
+    const delivery = await Delivery.findOne({ rx, date: day }, {}, { session });
+    if (!delivery) {
+      throw { status: 404 };
+    }
+    const { _id, __v, status, station } = delivery;
+    stationCode = station.code;
+    switch (status) {
+      case "RETURNED":
+        throw { status: 422 };
+      case "DELAYED":
+        throw { status: 422 };
+      case "SHIPPED":
+        delivery.status = "RETURNED";
+        await delivery.save();
+        break;
+      default:
+        const result = await Delivery.findOneAndDelete(
+          { _id, __v },
+          { session }
+        );
+        if (!result) {
+          throw { status: 409 };
+        }
+    }
+    await session.commitTransaction();
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    await session.endSession();
+  }
+  await refresh_nodeCache_deliveries(stationCode, day);
 };
 
 /**
@@ -203,49 +337,6 @@ exports.getDeliveries = async (stationCode, date) => {
 };
 
 /**
- * @param {string} stationCode
- * @returns {Promise<void>}
- */
-const refresh_nodeCache_current_deliveries = async (stationCode) => {
-  const now = dayjs();
-  if (!now.isSame(today, "d")) {
-    nodeCache_current_deliveries.flushAll();
-    today = now;
-  }
-  const station = await findStation(stationCode);
-  const deliveries = await Delivery.find({
-    station,
-    date: {
-      $gte: now.startOf("d"),
-      $lte: now.endOf("d"),
-    },
-    status: { $ne: "CANCELED" },
-  });
-  nodeCache_current_deliveries.set(stationCode, deliveryRows(deliveries));
-};
-
-/**
- * @param {string} stationCode
- * @param {dayjs.Dayjs} day
- * @returns {Promise<void>}
- */
-const refresh_nodeCache_past_deliveries = async (stationCode, day) => {
-  const station = await findStation(stationCode);
-  const deliveries = await Delivery.find({
-    station,
-    date: {
-      $gte: now.startOf("d"),
-      $lte: now.endOf("d"),
-    },
-    status: { $ne: "CANCELED" },
-  });
-  nodeCache_past_deliveries.set(
-    get_nodeCache_past_deliveries_key(stationCode, day),
-    deliveryRows(deliveries)
-  );
-};
-
-/**
  * MQ HANDLERS
  */
 
@@ -284,22 +375,15 @@ exports.handleNewDeliveryMessage = async (msg) => {
  */
 exports.handleCancelDeliveryMessage = async (msg) => {
   const { rxID, date } = msg;
-  const rx = await findRxByRxID(rxID);
-  if (!rx) {
-    throw { status: 404 };
-  }
-  const delivery = await Delivery.findOne({ rx, date: new Date(date) });
-  if (!delivery) {
-    throw { status: 404 };
-  }
-  const { status } = delivery;
+  await exports.cancelDelivery(rxID, dayjs(date));
 };
 
-// /**
-//  * @typedef {object} ShipDeliveryMessage
-//  * @property {string} stationCode
-//  * @property {string}
-//  */
+/**
+ * @typedef {object} ShipDeliveryMessage
+ * @property {string} stationCode
+ * @property {string[]} rxIDs
+ * @property {string} date
+ */
 
 // /**
 //  * @param {ShipDeliveryMessage} msg

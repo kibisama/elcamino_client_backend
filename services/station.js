@@ -42,6 +42,9 @@ exports.getStationIds = async (stationCodes) => {
  * @returns {Promise<Station.Station>}
  */
 exports.findStation = async (stationCode) => {
+  if (!stationCode) {
+    throw { status: 422 };
+  }
   const cache = nodeCache_stations.get(stationCode);
   if (cache) {
     return cache;
@@ -53,11 +56,4 @@ exports.findStation = async (stationCode) => {
   } else {
     throw { status: 404 };
   }
-};
-
-/**
- * @returns {string[]}
- */
-exports.getStationCodes = () => {
-  return nodeCache_stations.keys();
 };

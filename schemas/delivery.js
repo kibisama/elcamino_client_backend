@@ -11,13 +11,13 @@ const deliverySchema = new Schema(
     station: { type: ObjectId, ref: "Station", required: true, index: true },
     status: {
       type: String,
-      enum: ["PROCESSED", "CANCELED", "SHIPPED", "RETURNED"],
+      enum: ["PROCESSED", "CANCELED", "SHIPPED", "DELAYED", "RETURNED"],
       required: true,
       default: "PROCESSED",
       index: true,
     },
   },
-  { timestamps: true },
+  { timestamps: true }
 );
 deliverySchema.index({ rx: 1, date: 1 }, { unique: true });
 
@@ -38,7 +38,7 @@ deliverySchema.index({ rx: 1, date: 1 }, { unique: true });
 const model = mongoose.model("Delivery", deliverySchema);
 /**
  * @typedef {Awaited<ReturnType<model["create"]>>[0]} Delivery
- * @typedef {"PROCESSED"|"CANCELED"|"SHIPPED"|"RETURNED"} DeliveryStatus
+ * @typedef {"PROCESSED"|"CANCELED"|"DELAYED"|"SHIPPED"|"RETURNED"} DeliveryStatus
  */
 
 module.exports = model;
