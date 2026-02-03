@@ -107,7 +107,7 @@ const deliveryRows = (deliveries) =>
     rxID: rx.rxID,
     rxDate: rx.rxDate,
     rxNumber: rx.rxNumber,
-    patientName: rx.patientLastName + "," + rx.patientFirstName,
+    patientName: rx.patient.patientLastName + "," + rx.patient.patientFirstName,
     drugName: rx.drugName,
     doctorName: rx.doctorName,
     rxQty: rx.rxQty,
@@ -217,19 +217,31 @@ exports.upsertDelivery = async (patientSchema, rxSchema, stationCode, day) => {
       // WARNING: to pass a `session` to `Model.create()` in Mongoose, you **must** pass an array as the first argument.
       await Delivery.create([{ rx, date: day, station }], { session });
     } else {
-      switch (delivery.status) {
+      const {
+        station: { code },
+        status,
+      } = delivery;
+      switch (status) {
         case "CANCELED":
-          delivery.station = station._id;
-          delivery.status = "PROCESSED";
-          await delivery.save();
+          // 업데이트안되는 버그고치기
+          // delivery.station = station._id;
+          // delivery.status = "PROCESSED";
+          await delivery.updateOne(
+            { station, status: "PROCESSED" },
+            { session },
+          );
+          // await delivery.save({ session });
           break;
         case "PROCESSED":
-          delivery.station = station._id;
-          await delivery.save();
+          await delivery.updateOne({ station }, { session });
+          // delivery.station = station._id;
+          // await delivery.save({ session });
+          console.log("updated");
           break;
         default:
           throw { status: 422 };
       }
+      code !== stationCode && (await refresh_nodeCache_deliveries(code, day));
     }
     await session.commitTransaction();
   } catch (error) {
@@ -261,15 +273,15 @@ exports.cancelDelivery = async (rxID, day) => {
       throw { status: 404 };
     }
     const { _id, __v, status, station } = delivery;
-    stationCode = station.code;
+    // stationCode = station.code;
     switch (status) {
       case "RETURNED":
         throw { status: 422 };
       case "DELAYED":
         throw { status: 422 };
       case "SHIPPED":
-        delivery.status = "RETURNED";
-        await delivery.save();
+        // delivery.status = "RETURNED";
+        // await delivery.save({ session });
         break;
       default:
         const result = await Delivery.findOneAndDelete(

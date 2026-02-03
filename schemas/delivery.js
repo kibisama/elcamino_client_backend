@@ -21,6 +21,11 @@ const deliverySchema = new Schema(
 );
 deliverySchema.index({ rx: 1, date: 1 }, { unique: true });
 
+deliverySchema.post("findOne", async function (doc) {
+  if (doc) {
+    await doc.populate({ path: "rx", populate: { path: "patient" } });
+  }
+});
 deliverySchema.post("find", async function (docs) {
   if (docs.length > 0) {
     for (let i = 0; i < docs.length; i++) {

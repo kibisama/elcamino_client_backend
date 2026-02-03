@@ -18,7 +18,9 @@ module.exports = async () => {
   const ch = await conn.createChannel();
   // await ch.prefetch(1);
 
-  let isSynced = false;
+  // let isSynced = false;
+  let isSynced = true;
+
   /** @type {{queue: string, msg: amqplib.Message}[]} */
   let msgQueues = [];
 
