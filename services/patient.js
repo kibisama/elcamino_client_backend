@@ -17,7 +17,7 @@ exports.findPatient = async (patientID) => {
     return cache;
   }
   const patient = await Patient.findOne({ patientID });
-  patient && exports.refresh_cache(patientID, patient);
+  patient && exports.refresh_nodeCache_patients(patientID, patient);
   return patient;
 };
 

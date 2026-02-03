@@ -8,17 +8,28 @@ const patientSchema = new Schema(
     patientFirstName: { type: String, required: true },
     patientLastName: { type: String, required: true },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
-patientSchema.pre("save", function () {
-  this.patientFirstName = encryptDB(this.patientFirstName.trim());
-  this.patientLastName = encryptDB(this.patientLastName.trim());
+patientSchema.pre("findOneAndUpdate", function () {
+  const update = this.getUpdate();
+  update.patientFirstName = encryptDB(update.patientFirstName.trim());
+  update.patientLastName = encryptDB(update.patientLastName.trim());
 });
-patientSchema.post("findOne", async function () {
-  this.patientFirstName = await decryptDB(this.patientFirstName);
-  this.patientLastName = await decryptDB(this.patientLastName);
-  this.patientName = this.patientLastName + "," + this.patientFirstName;
+patientSchema.post("findOne", async function (doc) {
+  if (doc) {
+    doc.patientFirstName = await decryptDB(doc.patientFirstName);
+    doc.patientLastName = await decryptDB(doc.patientLastName);
+  }
+});
+patientSchema.post("find", async function (docs) {
+  if (docs.length > 0) {
+    for (let i = 0; i < docs.length; i++) {
+      const doc = docs[i];
+      doc.patientFirstName = await decryptDB(doc.patientFirstName);
+      doc.patientLastName = await decryptDB(doc.patientLastName);
+    }
+  }
 });
 
 const model = mongoose.model("Patient", patientSchema);

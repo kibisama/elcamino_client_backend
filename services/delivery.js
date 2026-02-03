@@ -57,14 +57,14 @@ const refresh_nodeCache_past_deliveries = async (stationCode, day) => {
   const deliveries = await Delivery.find({
     station,
     date: {
-      $gte: now.startOf("d"),
-      $lte: now.endOf("d"),
+      $gte: day.startOf("d"),
+      $lte: day.endOf("d"),
     },
     status: { $ne: "CANCELED" },
   });
   nodeCache_past_deliveries.set(
     get_nodeCache_past_deliveries_key(stationCode, day),
-    deliveryRows(deliveries)
+    deliveryRows(deliveries),
   );
 };
 
@@ -100,14 +100,14 @@ const refresh_nodeCache_deliveries = async (stationCode, day) => {
  * @param {Delivery.Delivery[]} deliveries
  * @returns {DeliveryRow[]}
  */
-const deliveryRows = async (deliveries) =>
+const deliveryRows = (deliveries) =>
   deliveries.map(({ date, status, rx }, i) => ({
     id: i,
     date,
     rxID: rx.rxID,
     rxDate: rx.rxDate,
     rxNumber: rx.rxNumber,
-    // patientName: delivery.rx.patientName,
+    patientName: rx.patientLastName + "," + rx.patientFirstName,
     drugName: rx.drugName,
     doctorName: rx.doctorName,
     rxQty: rx.rxQty,
@@ -120,14 +120,14 @@ const deliveryRows = async (deliveries) =>
  * @param {string} delimiter
  * @returns {{patientSchema: import("../schemas/patient").PatientSchema, rxSchema: import("../schemas/rx").RxSchema}}
  */
-const decodeQR = async (qr, delimiter) => {
+const decodeQR = (qr, delimiter) => {
   const [
     rxID,
     rxNumber,
     rxDate,
     patientID,
     patientLastName,
-    pateintFirstName,
+    patientFirstName,
     drugName,
     doctorName,
     rxQty,
@@ -142,7 +142,7 @@ const decodeQR = async (qr, delimiter) => {
       rxDate &&
       patientID &&
       patientLastName &&
-      pateintFirstName &&
+      patientFirstName &&
       drugName &&
       doctorName &&
       rxQty &&
@@ -152,7 +152,7 @@ const decodeQR = async (qr, delimiter) => {
     throw { status: 422 };
   }
   return {
-    patientSchema: { patientID, patientLastName, pateintFirstName },
+    patientSchema: { patientID, patientLastName, patientFirstName },
     rxSchema: {
       rxID,
       rxNumber,
@@ -190,15 +190,18 @@ exports.upsertDelivery = async (patientSchema, rxSchema, stationCode, day) => {
         session,
       });
     }
-    const { rxID, ..._rxSchema } = rxSchema;
-    if (!rxID) {
-      throw { status: 422 };
-    }
-    const rx = await Rx.findOneAndUpdate({ rxID }, _rxSchema, {
-      upsert: true,
-      session,
-    });
+
+    const rx = await Rx.findOneAndUpdate(
+      { rxID: rxSchema.rxID },
+      { ...rxSchema, patient },
+      {
+        new: true,
+        upsert: true,
+        session,
+      },
+    );
     const station = await findStation(stationCode);
+
     const delivery = await Delivery.findOne(
       {
         rx,
@@ -208,10 +211,11 @@ exports.upsertDelivery = async (patientSchema, rxSchema, stationCode, day) => {
         },
       },
       {},
-      { session }
+      { session },
     );
     if (!delivery) {
-      await Delivery.create({ rx, date: day, station }, { session });
+      // WARNING: to pass a `session` to `Model.create()` in Mongoose, you **must** pass an array as the first argument.
+      await Delivery.create([{ rx, date: day, station }], { session });
     } else {
       switch (delivery.status) {
         case "CANCELED":
@@ -270,7 +274,7 @@ exports.cancelDelivery = async (rxID, day) => {
       default:
         const result = await Delivery.findOneAndDelete(
           { _id, __v },
-          { session }
+          { session },
         );
         if (!result) {
           throw { status: 409 };
@@ -311,7 +315,7 @@ const getPastDeliveries = async (stationCode, day) => {
     return cache;
   }
   await refresh_nodeCache_past_deliveries(stationCode, day);
-  return nodeCache_current_deliveries.get(key);
+  return nodeCache_past_deliveries.get(key);
 };
 
 /**
@@ -359,7 +363,7 @@ exports.handleNewDeliveryMessage = async (msg) => {
     patientSchema,
     rxSchema,
     stationCode,
-    dayjs(date)
+    dayjs(date),
   );
 };
 

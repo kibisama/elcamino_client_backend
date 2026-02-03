@@ -17,23 +17,18 @@ const deliverySchema = new Schema(
       index: true,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 deliverySchema.index({ rx: 1, date: 1 }, { unique: true });
 
-// 테스트코드
-
-// rxSchema.post("find", async function (docs) {
-//   if (docs.length > 0) {
-//     for (let i = 0; i < docs.length; i++) {
-//       const doc = docs[i];
-//       const { patient } = await doc.populate("patient");
-//       const fn = await decryptDB(patient.patientFirstName);
-//       const ln = await decryptDB(patient.patientLastName);
-//       doc.patientName = ln + "," + fn;
-//     }
-//   }
-// });
+deliverySchema.post("find", async function (docs) {
+  if (docs.length > 0) {
+    for (let i = 0; i < docs.length; i++) {
+      const doc = docs[i];
+      await doc.populate({ path: "rx", populate: { path: "patient" } });
+    }
+  }
+});
 
 const model = mongoose.model("Delivery", deliverySchema);
 /**

@@ -51,9 +51,43 @@ exports.findStation = async (stationCode) => {
   }
   const station = await Station.findOne({ code: stationCode });
   if (station) {
-    nodeCache_stations.set(stationCode, station);
+    station.active && nodeCache_stations.set(stationCode, station);
     return station;
   } else {
     throw { status: 404 };
+  }
+};
+
+/**
+ * @param {import("../schemas/station").StationSchema[]} msg
+ * @returns {Promise<void>}
+ */
+exports.syncStationMessage = async (msg) => {
+  for (let i = 0; i < msg.length; i++) {
+    const station = msg[i];
+    try {
+      const result = await exports.findStation(station.code);
+      if (
+        !(
+          result.name === station.name &&
+          result.address === station.address &&
+          result.city === station.city &&
+          result.state === station.state &&
+          result.zip === station.zip &&
+          result.phone === station.phone
+        )
+      ) {
+        const updated = await Station.findOneAndUpdate(result, station, {
+          new: true,
+        });
+        nodeCache_stations.set(updated.code, updated);
+      }
+    } catch (error) {
+      if (error.status === 404) {
+        await exports.createStation(station);
+      } else {
+        throw error;
+      }
+    }
   }
 };
