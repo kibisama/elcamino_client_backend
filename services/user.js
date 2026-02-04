@@ -33,7 +33,7 @@ exports.createUser = async (username, password, name, stationCodes) => {
   }
   const hash = await bcrypt.hash(password, 10);
   let stations;
-  if (stationCodes) {
+  if (stationCodes instanceof Array) {
     stations = await getStationIds(stationCodes);
   }
   const user = await User.create({
@@ -67,11 +67,11 @@ exports.resetPassword = async (username, password) => {
   if (!(username && password)) {
     throw { status: 422 };
   }
-  const user = await User.findOne({ username });
-  if (user) {
-    const hash = await bcrypt.hash(password, 10);
-    await user.updateOne({ password: hash });
-  } else {
+  const updated = await User.findOneAndUpdate(
+    { username },
+    { $set: { password: await bcrypt.hash(password, 10) }, $inc: { __v: 1 } }
+  );
+  if (!updated) {
     throw { status: 404 };
   }
 };

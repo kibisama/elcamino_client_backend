@@ -13,7 +13,7 @@ exports.getDeliveries = async (req, res, next) => {
       return res.sendStatus(404);
     }
     return res.send(encryptData(deliveries));
-  } catch (e) {
-    next(e);
+  } catch (error) {
+    next(error);
   }
 };

@@ -7,6 +7,7 @@ dayjs.extend(customParseFormat);
 const mongoose = require("mongoose");
 const { findPatient, refresh_nodeCache_patients } = require("./patient");
 const { findStation } = require("./station");
+const { compareFields } = require("./utils");
 
 /**
  * NodeCache
@@ -64,7 +65,7 @@ const refresh_nodeCache_past_deliveries = async (stationCode, day) => {
   });
   nodeCache_past_deliveries.set(
     get_nodeCache_past_deliveries_key(stationCode, day),
-    deliveryRows(deliveries),
+    deliveryRows(deliveries)
   );
 };
 
@@ -176,72 +177,79 @@ const decodeQR = (qr, delimiter) => {
 exports.upsertDelivery = async (patientSchema, rxSchema, stationCode, day) => {
   const session = await mongoose.startSession();
   session.startTransaction();
-  const { patientID, patientFirstName, patientLastName } = patientSchema;
+  const { patientID } = patientSchema;
   let patient = await findPatient(patientID);
   try {
-    if (
-      !patient ||
-      patientFirstName !== patient.patientFirstName ||
-      patientLastName !== patient.patientLastName
-    ) {
-      patient = await Patient.findOneAndUpdate({ patientID }, patientSchema, {
-        new: true,
-        upsert: true,
-        session,
-      });
+    if (!patient || compareFields(patientSchema, patient)) {
+      patient = await Patient.findOneAndUpdate(
+        { patientID },
+        { $set: patientSchema },
+        {
+          runValidators: true,
+          new: true,
+          upsert: true,
+          session,
+        }
+      );
     }
-
-    const rx = await Rx.findOneAndUpdate(
+    const { _id: rx } = await Rx.findOneAndUpdate(
       { rxID: rxSchema.rxID },
-      { ...rxSchema, patient },
+      { $set: { ...rxSchema, patient: patient._id } },
       {
+        runValidators: true,
         new: true,
         upsert: true,
         session,
-      },
+      }
     );
-    const station = await findStation(stationCode);
 
-    const delivery = await Delivery.findOne(
-      {
-        rx,
-        date: {
-          $gte: day.startOf("d"),
-          $lte: day.endOf("d"),
-        },
+    const { _id: station } = await findStation(stationCode);
+    const delivery = await Delivery.findOne({
+      rx,
+      date: {
+        $gte: day.startOf("d"),
+        $lte: day.endOf("d"),
       },
-      {},
-      { session },
-    );
+    }).session(session);
+
     if (!delivery) {
       // WARNING: to pass a `session` to `Model.create()` in Mongoose, you **must** pass an array as the first argument.
       await Delivery.create([{ rx, date: day, station }], { session });
     } else {
       const {
+        _id,
+        __v,
         station: { code },
         status,
       } = delivery;
+      const isStationChanged = code !== stationCode;
       switch (status) {
-        case "CANCELED":
-          // 업데이트안되는 버그고치기
-          // delivery.station = station._id;
-          // delivery.status = "PROCESSED";
-          await delivery.updateOne(
-            { station, status: "PROCESSED" },
-            { session },
-          );
-          // await delivery.save({ session });
-          break;
         case "PROCESSED":
-          await delivery.updateOne({ station }, { session });
-          // delivery.station = station._id;
-          // await delivery.save({ session });
-          console.log("updated");
+          if (isStationChanged) {
+            const result = await Delivery.findOneAndUpdate(
+              { _id, __v },
+              { $set: { station } }
+            );
+            if (!result) {
+              throw { status: 409 };
+            }
+          } else {
+            return;
+          }
+          break;
+        case "CANCELED":
+          const result = await Delivery.findOneAndUpdate(
+            { _id, __v },
+            { $set: { station, status: "PROCESSED" } }
+          );
+          if (!result) {
+            throw { status: 409 };
+          }
           break;
         default:
-          throw { status: 422 };
+          throw { status: 410 };
       }
-      code !== stationCode && (await refresh_nodeCache_deliveries(code, day));
+      isStationChanged && (await refresh_nodeCache_deliveries(code, day));
     }
     await session.commitTransaction();
   } catch (error) {
@@ -262,36 +270,49 @@ exports.upsertDelivery = async (patientSchema, rxSchema, stationCode, day) => {
 exports.cancelDelivery = async (rxID, day) => {
   const session = await mongoose.startSession();
   session.startTransaction();
-  let stationCode;
   try {
     const rx = await Rx.findOne({ rxID });
     if (!rx) {
       throw { status: 404 };
     }
-    const delivery = await Delivery.findOne({ rx, date: day }, {}, { session });
+    const delivery = await Delivery.findOne({
+      rx,
+      date: {
+        $gte: day.startOf("d"),
+        $lte: day.endOf("d"),
+      },
+    }).session(session);
     if (!delivery) {
       throw { status: 404 };
     }
-    const { _id, __v, status, station } = delivery;
-    // stationCode = station.code;
+    const {
+      _id,
+      __v,
+      status,
+      station: { code },
+    } = delivery;
     switch (status) {
+      case "PROCESSED":
+        await delivery.updateOne({ $set: { status: "CANCELED" } });
+        break;
+      case "SHIPPED":
+        await delivery.updateOne({ $set: { status: "RETURNED" } });
+        break;
       case "RETURNED":
         throw { status: 422 };
       case "DELAYED":
         throw { status: 422 };
-      case "SHIPPED":
-        // delivery.status = "RETURNED";
-        // await delivery.save({ session });
-        break;
       default:
-        const result = await Delivery.findOneAndDelete(
-          { _id, __v },
-          { session },
-        );
-        if (!result) {
-          throw { status: 409 };
-        }
+      // dont have to delete
+      // const result = await Delivery.findOneAndDelete(
+      //   { _id, __v },
+      //   { session }
+      // );
+      // if (!result) {
+      //   throw { status: 409 };
+      // }
     }
+    await refresh_nodeCache_deliveries(code, day);
     await session.commitTransaction();
   } catch (error) {
     await session.abortTransaction();
@@ -299,7 +320,6 @@ exports.cancelDelivery = async (rxID, day) => {
   } finally {
     await session.endSession();
   }
-  await refresh_nodeCache_deliveries(stationCode, day);
 };
 
 /**
@@ -375,7 +395,7 @@ exports.handleNewDeliveryMessage = async (msg) => {
     patientSchema,
     rxSchema,
     stationCode,
-    dayjs(date),
+    dayjs(date)
   );
 };
 

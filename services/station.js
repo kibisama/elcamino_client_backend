@@ -1,4 +1,5 @@
 const Station = require("../schemas/station");
+const { compareFields } = require("./utils");
 const NodeCache = require("node-cache");
 // [station.code]: station
 const nodeCache_stations = new NodeCache();
@@ -67,19 +68,15 @@ exports.syncStationMessage = async (msg) => {
     const station = msg[i];
     try {
       const result = await exports.findStation(station.code);
-      if (
-        !(
-          result.name === station.name &&
-          result.address === station.address &&
-          result.city === station.city &&
-          result.state === station.state &&
-          result.zip === station.zip &&
-          result.phone === station.phone
-        )
-      ) {
-        const updated = await Station.findOneAndUpdate(result, station, {
-          new: true,
-        });
+      if (!compareFields(station, result)) {
+        const updated = await Station.findOneAndUpdate(
+          { _id: result._id, __v: result.__v },
+          { $set: station, $inc: { __v: 1 } },
+          { new: true }
+        );
+        if (!updated) {
+          throw { status: 409 };
+        }
         nodeCache_stations.set(updated.code, updated);
       }
     } catch (error) {
