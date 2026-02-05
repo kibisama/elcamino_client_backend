@@ -10,14 +10,14 @@ const nodeCache_patients = new NodeCache({ stdTTL: 28800, maxKeys: 100 });
  */
 exports.findPatient = async (patientID) => {
   if (!patientID) {
-    throw { status: 422 };
+    throw { status: 400 };
   }
   const cache = nodeCache_patients.get(patientID);
   if (cache) {
     return cache;
   }
   const patient = await Patient.findOne({ patientID });
-  patient && exports.refresh_nodeCache_patients(patientID, patient);
+  patient && exports.set_nodeCache_patients(patientID, patient);
   return patient;
 };
 
@@ -26,5 +26,5 @@ exports.findPatient = async (patientID) => {
  * @param {*} patient
  * @returns {boolean}
  */
-exports.refresh_nodeCache_patients = (patientID, patient) =>
+exports.set_nodeCache_patients = (patientID, patient) =>
   nodeCache_patients.set(patientID, patient);

@@ -40,7 +40,7 @@ const createToken = (_id, stationCodes) => {
  */
 exports.login = async (username, password) => {
   if (!(username && password)) {
-    throw { status: 422 };
+    throw { status: 400 };
   }
   const user = await User.findOne({ username });
   if (user) {

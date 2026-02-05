@@ -11,10 +11,24 @@ const patientSchema = new Schema(
   { timestamps: true },
 );
 
+patientSchema.pre("save", function () {
+  this.patientFirstName = encryptDB(this.patientFirstName.trim());
+  this.patientLastName = encryptDB(this.patientLastName.trim());
+});
 patientSchema.pre("findOneAndUpdate", function () {
   const update = this.getUpdate();
-  update.patientFirstName = encryptDB(update.patientFirstName.trim());
-  update.patientLastName = encryptDB(update.patientLastName.trim());
+  if (update.$set?.patientFirstName) {
+    update.$set.patientFirstName = encryptDB(
+      update.$set.patientFirstName.trim(),
+    );
+  } else if (update.patientFirstName) {
+    update.patientFirstName = encryptDB(update.patientFirstName.trim());
+  }
+  if (update.$set?.patientLastName) {
+    update.$set.patientLastName = encryptDB(update.$set.patientLastName.trim());
+  } else if (update.patientLastName) {
+    update.patientLastName = encryptDB(update.patientLastName.trim());
+  }
 });
 patientSchema.post("findOne", async function (doc) {
   if (doc) {
@@ -38,7 +52,7 @@ const model = mongoose.model("Patient", patientSchema);
  * @property {string} patientID
  * @property {string} patientFirstName
  * @property {string} patientLastName
- * @typedef {Awaited<ReturnType<model["create"]>>[0]} Patient
+ * @typedef {mongoose.HydratedDocument<PatientSchema>} Patient
  */
 
 module.exports = model;

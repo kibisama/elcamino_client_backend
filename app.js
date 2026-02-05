@@ -31,6 +31,7 @@ const limiter = rateLimit({
   windowMs: 1000,
   message: "Too many requests from this IP",
 });
+app.set("trust proxy", 1);
 app.use(limiter);
 
 app.use(express.json());

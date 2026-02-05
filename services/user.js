@@ -28,8 +28,8 @@ const userInfo = ({ username, name, stationCodes }) => ({
  * @returns {Proimse<UserInfo>}
  */
 exports.createUser = async (username, password, name, stationCodes) => {
-  if (!password) {
-    throw { status: 422 };
+  if (!(username && password && name)) {
+    throw { status: 400 };
   }
   const hash = await bcrypt.hash(password, 10);
   let stations;
@@ -65,11 +65,11 @@ exports.getUserInfo = async (_id) => {
  */
 exports.resetPassword = async (username, password) => {
   if (!(username && password)) {
-    throw { status: 422 };
+    throw { status: 400 };
   }
   const updated = await User.findOneAndUpdate(
     { username },
-    { $set: { password: await bcrypt.hash(password, 10) }, $inc: { __v: 1 } }
+    { $set: { password: await bcrypt.hash(password, 10) } },
   );
   if (!updated) {
     throw { status: 404 };
@@ -82,7 +82,7 @@ exports.resetPassword = async (username, password) => {
  */
 exports.deleteUser = async (username) => {
   if (!username) {
-    throw { status: 422 };
+    throw { status: 400 };
   }
   const user = await User.findOne({ username });
   if (user) {

@@ -5,7 +5,7 @@ const dayjs = require("dayjs");
 const customParseFormat = require("dayjs/plugin/customParseFormat");
 dayjs.extend(customParseFormat);
 const mongoose = require("mongoose");
-const { findPatient, refresh_nodeCache_patients } = require("./patient");
+const { findPatient, set_nodeCache_patients } = require("./patient");
 const { findStation } = require("./station");
 const { compareFields } = require("./utils");
 
@@ -65,7 +65,7 @@ const refresh_nodeCache_past_deliveries = async (stationCode, day) => {
   });
   nodeCache_past_deliveries.set(
     get_nodeCache_past_deliveries_key(stationCode, day),
-    deliveryRows(deliveries)
+    deliveryRows(deliveries),
   );
 };
 
@@ -75,6 +75,9 @@ const refresh_nodeCache_past_deliveries = async (stationCode, day) => {
  * @returns {Promise<void>}
  */
 const refresh_nodeCache_deliveries = async (stationCode, day) => {
+  if (!(stationCode && day)) {
+    throw { status: 400 };
+  }
   if (day.isSame(dayjs(), "d")) {
     await refresh_nodeCache_current_deliveries(stationCode);
   } else {
@@ -150,7 +153,7 @@ const decodeQR = (qr, delimiter) => {
       refills
     )
   ) {
-    throw { status: 422 };
+    throw { status: 400 };
   }
   return {
     patientSchema: { patientID, patientLastName, patientFirstName },
@@ -180,29 +183,32 @@ exports.upsertDelivery = async (patientSchema, rxSchema, stationCode, day) => {
   const { patientID } = patientSchema;
   let patient = await findPatient(patientID);
   try {
-    if (!patient || compareFields(patientSchema, patient)) {
+    if (!patient) {
+      // WARNING: to pass a `session` to `Model.create()` in Mongoose, you **must** pass an array as the first argument.
+      patient = (await Patient.create([patientSchema], { session }))[0];
+    } else if (!compareFields(patientSchema, patient)) {
       patient = await Patient.findOneAndUpdate(
-        { patientID },
-        { $set: patientSchema },
-        {
-          runValidators: true,
-          new: true,
-          upsert: true,
-          session,
-        }
+        { _id: patient, __v: patient.__v },
+        { $set: patientSchema, $inc: { __v: 1 } },
+        { runValidators: true, new: true, session },
       );
-    }
-    const { _id: rx } = await Rx.findOneAndUpdate(
-      { rxID: rxSchema.rxID },
-      { $set: { ...rxSchema, patient: patient._id } },
-      {
-        runValidators: true,
-        new: true,
-        upsert: true,
-        session,
+      if (!patient) {
+        throw { status: 409 };
       }
-    );
-
+    }
+    let rx = await Rx.findOne({ rxID: rxSchema.rxID });
+    if (!rx) {
+      rx = (await Rx.create([{ ...rxSchema, patient }], { session }))[0];
+    } else if (!compareFields(rxSchema, rx)) {
+      rx = await Rx.findOneAndUpdate(
+        { _id: rx, __v: rx.__v },
+        { $set: { ...rxSchema, patient }, $inc: { __v: 1 } },
+        { runValidators: true, new: true, session },
+      );
+      if (!rx) {
+        throw { status: 409 };
+      }
+    }
     const { _id: station } = await findStation(stationCode);
     const delivery = await Delivery.findOne({
       rx,
@@ -212,8 +218,9 @@ exports.upsertDelivery = async (patientSchema, rxSchema, stationCode, day) => {
       },
     }).session(session);
 
+    let isStationChanged;
+    let exStationCode;
     if (!delivery) {
-      // WARNING: to pass a `session` to `Model.create()` in Mongoose, you **must** pass an array as the first argument.
       await Delivery.create([{ rx, date: day, station }], { session });
     } else {
       const {
@@ -222,44 +229,49 @@ exports.upsertDelivery = async (patientSchema, rxSchema, stationCode, day) => {
         station: { code },
         status,
       } = delivery;
-      const isStationChanged = code !== stationCode;
+      isStationChanged = code !== stationCode;
+      exStationCode = code;
       switch (status) {
         case "PROCESSED":
           if (isStationChanged) {
             const result = await Delivery.findOneAndUpdate(
               { _id, __v },
-              { $set: { station } }
+              { $set: { station }, $inc: { __v: 1 } },
+              { runValidators: true, session },
             );
             if (!result) {
               throw { status: 409 };
             }
-          } else {
-            return;
           }
           break;
         case "CANCELED":
           const result = await Delivery.findOneAndUpdate(
             { _id, __v },
-            { $set: { station, status: "PROCESSED" } }
+            { $set: { station, status: "PROCESSED" }, $inc: { __v: 1 } },
+            { runValidators: true, session },
           );
           if (!result) {
             throw { status: 409 };
           }
           break;
+        case "RETURNED":
+          await Delivery.create([{ rx, date: day, station }], { session });
+          break;
         default:
-          throw { status: 410 };
+          throw { status: 422 };
       }
-      isStationChanged && (await refresh_nodeCache_deliveries(code, day));
     }
     await session.commitTransaction();
+    set_nodeCache_patients(patientID, patient);
+    isStationChanged &&
+      (await refresh_nodeCache_deliveries(exStationCode, day));
+    await refresh_nodeCache_deliveries(stationCode, day);
   } catch (error) {
     await session.abortTransaction();
     throw error;
   } finally {
     await session.endSession();
   }
-  refresh_nodeCache_patients(patientID, patient);
-  await refresh_nodeCache_deliveries(stationCode, day);
 };
 
 /**
@@ -271,7 +283,7 @@ exports.cancelDelivery = async (rxID, day) => {
   const session = await mongoose.startSession();
   session.startTransaction();
   try {
-    const rx = await Rx.findOne({ rxID });
+    const rx = await Rx.findOne({ rxID }).session(session);
     if (!rx) {
       throw { status: 404 };
     }
@@ -291,29 +303,29 @@ exports.cancelDelivery = async (rxID, day) => {
       status,
       station: { code },
     } = delivery;
+    const update = { $set: {} };
     switch (status) {
       case "PROCESSED":
-        await delivery.updateOne({ $set: { status: "CANCELED" } });
+        update.$set.status = "CANCELED";
         break;
       case "SHIPPED":
-        await delivery.updateOne({ $set: { status: "RETURNED" } });
+        update.$set.status = "RETURNED";
         break;
-      case "RETURNED":
-        throw { status: 422 };
       case "DELAYED":
-        throw { status: 422 };
+        update.$set.status = "CANCELED";
+        break;
       default:
-      // dont have to delete
-      // const result = await Delivery.findOneAndDelete(
-      //   { _id, __v },
-      //   { session }
-      // );
-      // if (!result) {
-      //   throw { status: 409 };
-      // }
+        throw { status: 422 };
     }
-    await refresh_nodeCache_deliveries(code, day);
+    const updated = await Delivery.findOneAndUpdate({ _id, __v }, update, {
+      runValidators: true,
+      session,
+    });
+    if (!updated) {
+      throw { status: 409 };
+    }
     await session.commitTransaction();
+    await refresh_nodeCache_deliveries(code, day);
   } catch (error) {
     await session.abortTransaction();
     throw error;
@@ -357,7 +369,7 @@ const getPastDeliveries = async (stationCode, day) => {
  */
 exports.getDeliveries = async (stationCode, date) => {
   if (!(stationCode && date)) {
-    throw { status: 422 };
+    throw { status: 400 };
   }
   const day = dayjs(date, "MMDDYYYY");
   const now = dayjs();
@@ -395,7 +407,7 @@ exports.handleNewDeliveryMessage = async (msg) => {
     patientSchema,
     rxSchema,
     stationCode,
-    dayjs(date)
+    dayjs(date),
   );
 };
 

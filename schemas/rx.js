@@ -16,7 +16,7 @@ const rxSchema = new Schema(
     drugName: { type: String, required: true, trim: true },
     patPay: { type: String, required: true, trim: true, default: "0" },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 const model = mongoose.model("Rx", rxSchema);
@@ -31,7 +31,7 @@ const model = mongoose.model("Rx", rxSchema);
  * @property {string} doctorName
  * @property {string} drugName
  * @property {string} patPay
- * @typedef {Awaited<ReturnType<model["create"]>>[0]} Rx
+ * @typedef {mongoose.HydratedDocument<RxSchema>} Rx
  */
 
 module.exports = model;

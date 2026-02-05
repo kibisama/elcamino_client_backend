@@ -19,18 +19,23 @@ const deliverySchema = new Schema(
   },
   { timestamps: true },
 );
-deliverySchema.index({ rx: 1, date: 1 }, { unique: true });
 
 deliverySchema.post("findOne", async function (doc) {
   if (doc) {
-    await doc.populate({ path: "rx", populate: { path: "patient" } });
+    await doc.populate([
+      { path: "rx", populate: { path: "patient" } },
+      { path: "station", select: "code" },
+    ]);
   }
 });
 deliverySchema.post("find", async function (docs) {
   if (docs.length > 0) {
     for (let i = 0; i < docs.length; i++) {
       const doc = docs[i];
-      await doc.populate({ path: "rx", populate: { path: "patient" } });
+      await doc.populate([
+        { path: "rx", populate: { path: "patient" } },
+        { path: "station", select: "code" },
+      ]);
     }
   }
 });

@@ -1,5 +1,6 @@
 const amqplib = require("amqplib");
 const RABBITMQ_URL = process.env.RABBITMQ_URL || "amqp://localhost";
+const DeadLetter = require("../schemas/deadLetter");
 const { syncStationMessage } = require("../services/station");
 const {
   handleNewDeliveryMessage,
@@ -33,14 +34,28 @@ module.exports = async () => {
     try {
       if (msg.properties.headers["x-retry-count"] > 5) {
         // save msg to DB
-
+        const headers = msg.properties.headers || {};
+        const xDeath = headers["x-death"] || [];
+        const deadLetter = new DeadLetter({
+          payload: JSON.parse(msg.content.toString()),
+          messageId: msg.properties.messageId,
+          deathHistory: xDeath.map((d) => ({
+            reason: d.reason,
+            queue: d.queue,
+            exchange: d.exchange,
+            routingKeys: d["routing-keys"],
+            time: d.time,
+            count: d.count,
+          })),
+          errorMessage: headers["x-first-death-reason"],
+        });
         ch.nack(msg, false, false);
         return;
       }
       await handlers[queue](JSON.parse(msg.content.toString()));
       ch.ack(msg);
     } catch (error) {
-      // console.error(error);
+      console.error(error);
       ch.nack(msg, false, false);
       if (error.status !== 422) {
         ch.publish("", queue + retrySuffix, msg.content, {

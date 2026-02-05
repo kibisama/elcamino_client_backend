@@ -44,7 +44,7 @@ exports.getStationIds = async (stationCodes) => {
  */
 exports.findStation = async (stationCode) => {
   if (!stationCode) {
-    throw { status: 422 };
+    throw { status: 400 };
   }
   const cache = nodeCache_stations.get(stationCode);
   if (cache) {
@@ -72,7 +72,7 @@ exports.syncStationMessage = async (msg) => {
         const updated = await Station.findOneAndUpdate(
           { _id: result._id, __v: result.__v },
           { $set: station, $inc: { __v: 1 } },
-          { new: true }
+          { runValidators: true, new: true },
         );
         if (!updated) {
           throw { status: 409 };

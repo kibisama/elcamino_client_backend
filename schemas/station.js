@@ -24,7 +24,7 @@ const model = mongoose.model("Station", stationSchema);
  * @property {string} state
  * @property {string} zip
  * @property {string} phone
- * @typedef {Awaited<ReturnType<model["create"]>>[0]} Station
+ * @typedef {mongoose.HydratedDocument<StationSchema>} Station
  */
 
 module.exports = model;
